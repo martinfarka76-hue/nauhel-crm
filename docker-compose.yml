@@ -1,0 +1,136 @@
+name: crm
+
+networks:
+  default:
+    name: crm-network
+    external: true
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: crm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    # Záměrně žádný "ports" blok - DB je dostupná jen uvnitř crm-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    container_name: crm-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/redis:/data
+    # Záměrně žádný "ports" blok - jen interně
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  backend:
+    build:
+      context: ./backend
+    container_name: crm-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "127.0.0.1:18080:8000"
+    volumes:
+      - ./backend:/app
+      - ./data/uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  frontend-admin:
+    build:
+      context: ./frontend-admin
+    container_name: crm-frontend-admin
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:18080
+    ports:
+      - "127.0.0.1:18081:3000"
+    volumes:
+      - ./frontend-admin:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  frontend-public:
+    build:
+      context: ./frontend-public
+    container_name: crm-frontend-public
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:18080
+    ports:
+      - "127.0.0.1:18082:3000"
+    volumes:
+      - ./frontend-public:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: crm-n8n
+    restart: unless-stopped
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:18083/
+      GENERIC_TIMEZONE: Europe/Prague
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
+    ports:
+      - "127.0.0.1:18083:5678"
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: crm-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    # Bez "ports" - tunel je čistě odchozí spojení, žádný port se nemapuje
+    profiles:
+      - public
+    deploy:
+      resources:
+        limits:
+          memory: 128M
