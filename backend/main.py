@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 
+from app import models  # noqa: F401 - zajišťuje registraci modelů
+
 app = FastAPI(title="NAUHEL CRM API")
 
 
