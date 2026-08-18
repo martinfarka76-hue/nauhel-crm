@@ -5,10 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.deal_transitions import perform_transition
 from app.models.deal import Deal
 from app.models.enums import DealStatus
 from app.models.user import User
 from app.schemas.deal import DealCreate, DealUpdate, DealOut
+from app.schemas.deal_transition import DealTransitionRequest
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
@@ -76,3 +78,22 @@ def delete_deal(
         raise HTTPException(status_code=404, detail="Deal not found")
     db.delete(deal)
     db.commit()
+
+
+@router.post("/{deal_id}/transition", response_model=DealOut)
+def transition_deal(
+    deal_id: uuid.UUID,
+    payload: DealTransitionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Manuální přechod stavu Deal. Validuje povolené přechody a spouští
+    vedlejší efekty (vytvoření Document apod.) podle business pravidel.
+    Přechod Objednávka -> Zálohová faktura NENÍ dostupný zde - ten
+    probíhá pouze automaticky přes /webhooks/esignature/{deal_id}.
+    """
+    deal = db.query(Deal).filter(Deal.id == deal_id).first()
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    return perform_transition(db, deal, payload.to_status)

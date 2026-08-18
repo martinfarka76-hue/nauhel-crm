@@ -33,6 +33,7 @@ class Document(Base):
     access_token = Column(String(64), nullable=False, unique=True, default=generate_access_token)
 
     email_sent_at = Column(DateTime, nullable=True)
+    reminder_sent_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
