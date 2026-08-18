@@ -34,3 +34,5 @@ class Deal(Base):
 
     company = relationship("Company", back_populates="deals")
     contact = relationship("Contact", back_populates="deals")
+    calculations = relationship("Calculation", back_populates="deal")
+    documents = relationship("Document", back_populates="deal")

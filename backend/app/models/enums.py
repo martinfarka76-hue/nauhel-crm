@@ -10,3 +10,11 @@ class DealStatus(str, enum.Enum):
     VYROBENO = "Vyrobeno"
     FAKTUROVANO = "Fakturováno"
     ZTRACENO = "Ztraceno"
+
+
+class DocumentType(str, enum.Enum):
+    NABIDKA = "Nabídka"
+    OBJEDNAVKA = "Objednávka"
+    ZALOHOVA_FAKTURA = "Zálohová faktura"
+    DODACI_LIST = "Dodací list"
+    FINALNI_FAKTURA = "Finální faktura"
