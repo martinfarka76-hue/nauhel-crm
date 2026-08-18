@@ -6,7 +6,8 @@ from app.models.calculation import Calculation
 from app.models.document import Document
 from app.models.document_view import DocumentView
 from app.models.email_template import EmailTemplate
-from app.models.enums import DealStatus, DocumentType
+from app.models.user import User
+from app.models.enums import DealStatus, DocumentType, UserRole
 
 __all__ = [
     "Company",
@@ -17,6 +18,8 @@ __all__ = [
     "Document",
     "DocumentView",
     "EmailTemplate",
+    "User",
     "DealStatus",
     "DocumentType",
+    "UserRole",
 ]

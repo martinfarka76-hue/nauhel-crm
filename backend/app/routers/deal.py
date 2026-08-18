@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.core.dependencies import get_current_user
 from app.models.deal import Deal
 from app.models.enums import DealStatus
+from app.models.user import User
 from app.schemas.deal import DealCreate, DealUpdate, DealOut
 
 router = APIRouter(prefix="/deals", tags=["deals"])
@@ -26,7 +28,11 @@ def list_deals(
 
 
 @router.post("", response_model=DealOut, status_code=201)
-def create_deal(payload: DealCreate, db: Session = Depends(get_db)):
+def create_deal(
+    payload: DealCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     deal = Deal(**payload.model_dump())
     db.add(deal)
     db.commit()
@@ -43,7 +49,12 @@ def get_deal(deal_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.put("/{deal_id}", response_model=DealOut)
-def update_deal(deal_id: uuid.UUID, payload: DealUpdate, db: Session = Depends(get_db)):
+def update_deal(
+    deal_id: uuid.UUID,
+    payload: DealUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     deal = db.query(Deal).filter(Deal.id == deal_id).first()
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
@@ -55,7 +66,11 @@ def update_deal(deal_id: uuid.UUID, payload: DealUpdate, db: Session = Depends(g
 
 
 @router.delete("/{deal_id}", status_code=204)
-def delete_deal(deal_id: uuid.UUID, db: Session = Depends(get_db)):
+def delete_deal(
+    deal_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     deal = db.query(Deal).filter(Deal.id == deal_id).first()
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")

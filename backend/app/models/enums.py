@@ -18,3 +18,8 @@ class DocumentType(str, enum.Enum):
     ZALOHOVA_FAKTURA = "Zálohová faktura"
     DODACI_LIST = "Dodací list"
     FINALNI_FAKTURA = "Finální faktura"
+
+
+class UserRole(str, enum.Enum):
+    ADMIN = "Admin"
+    OBCHODNIK = "Obchodník"
