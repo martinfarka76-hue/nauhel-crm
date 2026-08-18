@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app import models  # noqa: F401 - zajišťuje registraci modelů
-from app.routers import company, contact, deal, auth
+from app.routers import company, contact, deal, auth, calculation, document
 
 app = FastAPI(title="NAUHEL CRM API")
 
@@ -9,6 +9,8 @@ app.include_router(auth.router)
 app.include_router(company.router)
 app.include_router(contact.router)
 app.include_router(deal.router)
+app.include_router(calculation.router)
+app.include_router(document.router)
 
 
 @app.get("/")
