@@ -17,6 +17,10 @@ function formatDate(iso) {
   });
 }
 
+function formatShortDate(iso) {
+  return new Date(iso).toLocaleDateString("cs-CZ");
+}
+
 export default function PublicOfferPage() {
   const { token } = useParams();
   const [state, setState] = useState("loading"); // loading | ready | not_found | error
@@ -153,12 +157,32 @@ export default function PublicOfferPage() {
                   {formatMoney(calc.price_with_vat)}
                 </span>
               </div>
+              {calc.valid_until && (
+                <div style={{ marginTop: 16, fontSize: 12.5, color: "var(--ink-600)" }}>
+                  Nabídka je platná do {formatShortDate(calc.valid_until)}. Uvedené ceny jsou
+                  konečné vč. DPH. Nabídka není objednávkou.
+                </div>
+              )}
             </>
           ) : (
             <div style={{ color: "var(--ink-600)", fontSize: 14 }}>
               Ke stažení nebo detailům se prosím obraťte na svého obchodního zástupce.
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="offer-card" style={{ marginTop: 16 }}>
+        <div className="offer-card-body" style={{ padding: "20px 32px" }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-600)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Platební údaje
+          </div>
+          <div style={{ fontSize: 13, color: "var(--ink-600)", lineHeight: 1.9 }}>
+            <div>NAUHEL s.r.o. · Ve Mlejnku 108, 257 65 Čechtice</div>
+            <div>IČO: 24463973 · DIČ: CZ24463973</div>
+            <div className="mono">Air Bank a.s. · 3599752017/3030</div>
+            <div className="mono">IBAN: CZ40 3030 0000 0035 9975 2017</div>
+          </div>
         </div>
       </div>
 

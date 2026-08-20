@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict
@@ -16,6 +16,7 @@ class CalculationBase(BaseModel):
     price_with_vat: Optional[Decimal] = None
     unit_price_per_m2: Optional[Decimal] = None
     margin_total: Optional[Decimal] = None
+    valid_until: Optional[date] = None
     raw_snapshot: Optional[dict[str, Any]] = None
 
 

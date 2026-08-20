@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Numeric, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Numeric, Boolean, DateTime, Date, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
@@ -39,6 +39,9 @@ class Calculation(Base):
     price_with_vat = Column(Numeric(12, 2), nullable=True)
     unit_price_per_m2 = Column(Numeric(12, 2), nullable=True)
     margin_total = Column(Numeric(12, 2), nullable=True)
+
+    # Platnost nabídky - do kdy je cena garantovaná
+    valid_until = Column(Date, nullable=True)
 
     # Kompletní snapshot všech hodnot z Excel kalkulace (flexibilní, bez nutnosti
     # migrace při každé změně struktury Excelu)

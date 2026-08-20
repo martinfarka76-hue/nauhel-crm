@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
@@ -42,6 +42,7 @@ class CalculationPublicOut(BaseModel):
     vat_amount: Optional[Decimal]
     price_with_vat: Optional[Decimal]
     unit_price_per_m2: Optional[Decimal]
+    valid_until: Optional[date]
 
 
 class DocumentPublicOut(BaseModel):
