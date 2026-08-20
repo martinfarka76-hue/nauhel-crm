@@ -65,3 +65,13 @@ class DocumentViewCreateResult(BaseModel):
 
 class DocumentViewDurationUpdate(BaseModel):
     duration_seconds: int
+
+
+class DocumentViewOut(BaseModel):
+    """Interní pohled na jednotlivé zobrazení dokumentu - pro tracking v adminu."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    viewed_at: datetime
+    duration_seconds: Optional[int]
+    ip_address: Optional[str]

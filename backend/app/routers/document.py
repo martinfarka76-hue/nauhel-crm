@@ -18,6 +18,7 @@ from app.schemas.document import (
     CalculationPublicOut,
     DocumentViewCreateResult,
     DocumentViewDurationUpdate,
+    DocumentViewOut,
 )
 
 router = APIRouter(tags=["documents"])
@@ -94,6 +95,23 @@ def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
     db.delete(document)
     db.commit()
+
+
+@router.get("/documents/{document_id}/views", response_model=list[DocumentViewOut])
+def list_document_views(
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Historie zobrazení dokumentu (kdy, jak dlouho, z jaké IP) - pro tracking v adminu."""
+    if not db.query(Document).filter(Document.id == document_id).first():
+        raise HTTPException(status_code=404, detail="Document not found")
+    return (
+        db.query(DocumentView)
+        .filter(DocumentView.document_id == document_id)
+        .order_by(DocumentView.viewed_at.desc())
+        .all()
+    )
 
 
 # --- Veřejné endpointy (bez přihlášení) - pro frontend-public ---

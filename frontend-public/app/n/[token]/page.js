@@ -10,7 +10,10 @@ function formatMoney(value) {
 }
 
 function formatDate(iso) {
-  return new Date(iso).toLocaleDateString("cs-CZ", {
+  // Backend posílá "naive" datetime v UTC - doplníme "Z" pro správný převod
+  // na místní čas prohlížeče.
+  const utcIso = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
+  return new Date(utcIso).toLocaleDateString("cs-CZ", {
     day: "numeric",
     month: "long",
     year: "numeric",

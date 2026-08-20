@@ -6,9 +6,15 @@ import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 import { STATUS_COLORS, NEXT_MANUAL_STATUS } from "@/lib/constants";
 
+const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
+
 function formatDate(iso) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("cs-CZ");
+  // Backend posílá "naive" datetime v UTC (bez timezone značky) - doplníme
+  // "Z", ať to prohlížeč správně převede na místní čas, ne zobrazí čas
+  // tak jak je (což by bylo o 1-2 hodiny méně, podle letního/zimního času).
+  const utcIso = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
+  return new Date(utcIso).toLocaleString("cs-CZ");
 }
 
 export default function DealDetailPage() {
@@ -17,6 +23,9 @@ export default function DealDetailPage() {
   const [company, setCompany] = useState(null);
   const [calculations, setCalculations] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [documentViews, setDocumentViews] = useState({}); // { [documentId]: [views] }
+  const [expandedDoc, setExpandedDoc] = useState(null);
+  const [copiedDoc, setCopiedDoc] = useState(null);
   const [error, setError] = useState("");
   const [transitioning, setTransitioning] = useState(false);
   const [showCalcForm, setShowCalcForm] = useState(false);
@@ -52,6 +61,33 @@ export default function DealDetailPage() {
   }
 
   useEffect(loadAll, [id]);
+
+  function handleCopyLink(accessToken, docId) {
+    const url = `${PUBLIC_URL}/n/${accessToken}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedDoc(docId);
+      setTimeout(() => setCopiedDoc(null), 2000);
+    });
+  }
+
+  async function handleToggleViews(docId) {
+    if (expandedDoc === docId) {
+      setExpandedDoc(null);
+      return;
+    }
+    setExpandedDoc(docId);
+    await refreshViews(docId);
+  }
+
+  async function refreshViews(docId) {
+    setDocumentViews((prev) => ({ ...prev, [docId]: undefined }));
+    try {
+      const views = await api.get(`/documents/${docId}/views`);
+      setDocumentViews((prev) => ({ ...prev, [docId]: views }));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function handleTransition(toStatus) {
     setTransitioning(true);
@@ -297,22 +333,91 @@ export default function DealDetailPage() {
           {documents.length === 0 ? (
             <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádné dokumenty</div>
           ) : (
-            documents.map((d) => (
-              <div
-                key={d.id}
-                style={{
-                  fontSize: 13.5,
-                  marginBottom: 10,
-                  paddingBottom: 10,
-                  borderBottom: "1px solid var(--paper-200)",
-                }}
-              >
-                <div>
-                  <strong>{d.document_type}</strong> {d.version > 1 ? `(v${d.version})` : ""}
+            documents.map((d) => {
+              const views = documentViews[d.id];
+              const viewCount = views ? views.length : null;
+              const lastView = views && views.length > 0 ? views[0] : null;
+
+              return (
+                <div
+                  key={d.id}
+                  style={{
+                    fontSize: 13.5,
+                    marginBottom: 10,
+                    paddingBottom: 10,
+                    borderBottom: "1px solid var(--paper-200)",
+                  }}
+                >
+                  <div>
+                    <strong>{d.document_type}</strong> {d.version > 1 ? `(v${d.version})` : ""}
+                  </div>
+                  <div style={{ color: "var(--ink-600)", marginBottom: 6 }}>
+                    Vytvořeno: {formatDate(d.created_at)}
+                  </div>
+
+                  {d.document_type === "Nabídka" && (
+                    <>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: "5px 10px", fontSize: 12.5 }}
+                          onClick={() => handleCopyLink(d.access_token, d.id)}
+                        >
+                          {copiedDoc === d.id ? "Zkopírováno ✓" : "Zkopírovat veřejný odkaz"}
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: "5px 10px", fontSize: 12.5 }}
+                          onClick={() => handleToggleViews(d.id)}
+                        >
+                          {expandedDoc === d.id ? "Skrýt zobrazení" : "Zobrazit sledování"}
+                        </button>
+                      </div>
+
+                      {expandedDoc === d.id && (
+                        <div
+                          style={{
+                            background: "var(--paper-50)",
+                            borderRadius: 6,
+                            padding: "10px 12px",
+                            marginTop: 4,
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div style={{ fontWeight: 600 }}>
+                              {views ? `Otevřeno ${viewCount}×` : "Sledování"}
+                            </div>
+                            <button
+                              className="btn btn-secondary"
+                              style={{ padding: "3px 8px", fontSize: 11.5 }}
+                              onClick={() => refreshViews(d.id)}
+                            >
+                              Obnovit
+                            </button>
+                          </div>
+                          {!views ? (
+                            <div style={{ color: "var(--ink-400)" }}>Načítám…</div>
+                          ) : views.length === 0 ? (
+                            <div style={{ color: "var(--ink-400)" }}>
+                              Nabídka zatím nebyla otevřena.
+                            </div>
+                          ) : (
+                            views.map((v) => (
+                              <div key={v.id} style={{ color: "var(--ink-600)", marginBottom: 3 }}>
+                                {formatDate(v.viewed_at)}
+                                {v.duration_seconds != null
+                                  ? ` · prohlíženo ${v.duration_seconds} s`
+                                  : " · doba čtení neznámá"}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-                <div style={{ color: "var(--ink-600)" }}>Vytvořeno: {formatDate(d.created_at)}</div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
