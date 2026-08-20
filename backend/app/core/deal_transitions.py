@@ -14,6 +14,8 @@ Pravidla podle odsouhlasené architektury:
   (Finální faktura)
 - Kterýkoli stav -> Ztraceno: ruční, vždy povoleno
 """
+from datetime import date
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
@@ -85,6 +87,11 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
         )
         db.add(document)
 
+    # Nabídka -> Objednávka: zaznamenej skutečné datum uzavření (přestává být
+    # jen odhad zadaný uživatelem, "zamkne se" na dnešní datum)
+    if to_status == DealStatus.OBJEDNAVKA:
+        deal.expected_close_date = date.today()
+
     # Zálohová faktura -> Vyrobeno: vyžaduje zaplacenou zálohu, vytváří Dodací list
     if to_status == DealStatus.VYROBENO:
         if not deal.deposit_paid:
@@ -95,8 +102,9 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
         document = Document(deal_id=deal.id, document_type=DocumentType.DODACI_LIST, version=1)
         db.add(document)
 
-    # Vyrobeno -> Fakturováno: vytváří finální fakturu
+    # Vyrobeno -> Fakturováno: zaznamenej skutečné datum fakturace, vytváří finální fakturu
     if to_status == DealStatus.FAKTUROVANO:
+        deal.expected_invoice_date = date.today()
         document = Document(deal_id=deal.id, document_type=DocumentType.FINALNI_FAKTURA, version=1)
         db.add(document)
 

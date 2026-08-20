@@ -39,6 +39,7 @@ export default function ProtectedShell({ children }) {
   const links = [
     { href: "/", label: "Přehled" },
     { href: "/companies", label: "Firmy" },
+    { href: "/contacts", label: "Kontakty" },
   ];
 
   return (

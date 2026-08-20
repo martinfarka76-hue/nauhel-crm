@@ -9,14 +9,11 @@ from app.database import Base
 
 class Calculation(Base):
     """
-    Kalkulace zakázky. Přístup "snapshot" - Excel kalkulátor (parametrický
-    cenový model specifický pro výrobu) zůstává zdrojem výpočtu; sem se
-    ukládá výsledek pro konkrétní Deal.
-
-    Typované sloupce pokrývají hodnoty, se kterými CRM často pracuje
-    (zobrazení, filtrování, generování nabídky). raw_snapshot obsahuje
-    kompletní kopii všech hodnot z Excelu pro danou kalkulaci, aby se
-    nic neztratilo, i když se struktura Excelu časem změní.
+    Kalkulace zakázky. Cena (price_without_vat/vat_amount/price_with_vat)
+    se počítá automaticky jako součet CalculationItem řádků (po odečtení
+    příslušné slevy dle kategorie) - viz app/core/calculation_totals.py.
+    Tato pole jsou tedy READ-ONLY z pohledu API (nezapisují se přímo,
+    přepočítávají se při každé změně položek nebo slev).
     """
     __tablename__ = "calculations"
 
@@ -33,7 +30,11 @@ class Calculation(Base):
     distance_km = Column(Numeric(10, 2), nullable=True)
     vat_rate = Column(Numeric(5, 4), nullable=True)         # např. 0.2100
 
-    # Klíčové výstupy
+    # Slevy - aplikují se jen na položky dané kategorie (Doprava/Ostatní beze slevy)
+    discount_material_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    discount_installation_percent = Column(Numeric(5, 2), nullable=False, default=0)
+
+    # Vypočtené výstupy - NEZAPISOVAT přímo, přepočítává calculation_totals.py
     price_without_vat = Column(Numeric(12, 2), nullable=True)
     vat_amount = Column(Numeric(12, 2), nullable=True)
     price_with_vat = Column(Numeric(12, 2), nullable=True)
@@ -52,3 +53,9 @@ class Calculation(Base):
 
     deal = relationship("Deal", back_populates="calculations")
     documents = relationship("Document", back_populates="calculation")
+    items = relationship(
+        "CalculationItem",
+        back_populates="calculation",
+        cascade="all, delete-orphan",
+        order_by="CalculationItem.display_order",
+    )

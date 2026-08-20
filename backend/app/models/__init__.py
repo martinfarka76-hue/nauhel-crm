@@ -3,11 +3,12 @@ from app.models.contact import Contact
 from app.models.deal import Deal
 from app.models.stage_config import StageConfig
 from app.models.calculation import Calculation
+from app.models.calculation_item import CalculationItem
 from app.models.document import Document
 from app.models.document_view import DocumentView
 from app.models.email_template import EmailTemplate
 from app.models.user import User
-from app.models.enums import DealStatus, DocumentType, UserRole
+from app.models.enums import DealStatus, DocumentType, UserRole, ItemCategory
 
 __all__ = [
     "Company",
@@ -15,6 +16,7 @@ __all__ = [
     "Deal",
     "StageConfig",
     "Calculation",
+    "CalculationItem",
     "Document",
     "DocumentView",
     "EmailTemplate",
@@ -22,4 +24,5 @@ __all__ = [
     "DealStatus",
     "DocumentType",
     "UserRole",
+    "ItemCategory",
 ]

@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import DocumentType
+from app.models.enums import DocumentType, ItemCategory
 
 
 class DocumentCreate(BaseModel):
@@ -31,6 +31,16 @@ class DocumentOut(BaseModel):
     updated_at: datetime
 
 
+class CalculationItemPublicOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    category: ItemCategory
+    name: str
+    unit: Optional[str]
+    quantity: Decimal
+    unit_price: Decimal
+
+
 class CalculationPublicOut(BaseModel):
     """Veřejný souhrn kalkulace - jen zákaznicky relevantní údaje, žádná marže."""
     model_config = ConfigDict(from_attributes=True)
@@ -38,11 +48,14 @@ class CalculationPublicOut(BaseModel):
     product_line: Optional[str]
     wood_species: Optional[str]
     area_m2: Optional[Decimal]
+    discount_material_percent: Decimal
+    discount_installation_percent: Decimal
     price_without_vat: Optional[Decimal]
     vat_amount: Optional[Decimal]
     price_with_vat: Optional[Decimal]
     unit_price_per_m2: Optional[Decimal]
     valid_until: Optional[date]
+    items: list[CalculationItemPublicOut] = []
 
 
 class DocumentPublicOut(BaseModel):

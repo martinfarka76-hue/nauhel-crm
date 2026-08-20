@@ -7,27 +7,48 @@ import { api } from "@/lib/api";
 import { STATUS_COLORS, NEXT_MANUAL_STATUS } from "@/lib/constants";
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
+const CATEGORIES = ["Materiál", "Práce", "Doprava", "Ostatní"];
 
 function formatDate(iso) {
   if (!iso) return "—";
-  // Backend posílá "naive" datetime v UTC (bez timezone značky) - doplníme
-  // "Z", ať to prohlížeč správně převede na místní čas, ne zobrazí čas
-  // tak jak je (což by bylo o 1-2 hodiny méně, podle letního/zimního času).
   const utcIso = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
   return new Date(utcIso).toLocaleString("cs-CZ");
 }
+
+function formatDateOnly(dateStr) {
+  // Datum bez času (YYYY-MM-DD) - rozparsujeme ručně, ať se vyhneme
+  // timezone posunu, který by mohl nastat přes new Date().
+  if (!dateStr) return "—";
+  const [y, m, d] = dateStr.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+// Datum uzavření lze ručně editovat jen do stavu Nabídka - jakmile Deal
+// dosáhne Objednávky, datum se zamkne na skutečné datum uzavření.
+const CLOSE_DATE_EDITABLE_STATUSES = ["Lead", "Kvalifikovaný lead", "Nabídka"];
+// Datum fakturace lze editovat jako odhad, dokud Deal nedosáhne stavu Fakturováno.
+const INVOICE_DATE_LOCKED_STATUS = "Fakturováno";
+
+function money(value) {
+  if (value === null || value === undefined) return "—";
+  return Number(value).toLocaleString("cs-CZ") + " Kč";
+}
+
+const emptyItemForm = { category: "Materiál", name: "", unit: "", quantity: "", unit_price: "" };
 
 export default function DealDetailPage() {
   const { id } = useParams();
   const [deal, setDeal] = useState(null);
   const [company, setCompany] = useState(null);
   const [calculations, setCalculations] = useState([]);
+  const [calcItems, setCalcItems] = useState({}); // { [calcId]: [items] }
   const [documents, setDocuments] = useState([]);
-  const [documentViews, setDocumentViews] = useState({}); // { [documentId]: [views] }
+  const [documentViews, setDocumentViews] = useState({});
   const [expandedDoc, setExpandedDoc] = useState(null);
   const [copiedDoc, setCopiedDoc] = useState(null);
   const [error, setError] = useState("");
   const [transitioning, setTransitioning] = useState(false);
+
   const [showCalcForm, setShowCalcForm] = useState(false);
   const [calcSaving, setCalcSaving] = useState(false);
   const [calcForm, setCalcForm] = useState({
@@ -36,10 +57,18 @@ export default function DealDetailPage() {
     area_m2: "",
     distance_km: "",
     vat_rate: "0.21",
-    price_without_vat: "",
-    unit_price_per_m2: "",
+    discount_material_percent: "0",
+    discount_installation_percent: "0",
     valid_until: "",
   });
+
+  const [itemForms, setItemForms] = useState({}); // { [calcId]: itemForm }
+  const [expandedCalcs, setExpandedCalcs] = useState({}); // { [calcId]: bool }
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editItemForm, setEditItemForm] = useState(emptyItemForm);
+
+  const [editingDeal, setEditingDeal] = useState(false);
+  const [dealEditForm, setDealEditForm] = useState(null);
 
   function loadAll() {
     api
@@ -52,10 +81,14 @@ export default function DealDetailPage() {
           api.get(`/deals/${id}/documents`),
         ]);
       })
-      .then(([c, calcs, docs]) => {
+      .then(async ([c, calcs, docs]) => {
         setCompany(c);
         setCalculations(calcs);
         setDocuments(docs);
+        const itemsEntries = await Promise.all(
+          calcs.map(async (calc) => [calc.id, await api.get(`/calculations/${calc.id}/items`)])
+        );
+        setCalcItems(Object.fromEntries(itemsEntries));
       })
       .catch((err) => setError(err.message));
   }
@@ -89,6 +122,46 @@ export default function DealDetailPage() {
     }
   }
 
+  function startEditDeal() {
+    setDealEditForm({
+      name: deal.name,
+      price: deal.price != null ? String(deal.price) : "",
+      expected_close_date: deal.expected_close_date || "",
+      expected_invoice_date: deal.expected_invoice_date || "",
+      deposit_paid: deal.deposit_paid,
+    });
+    setEditingDeal(true);
+  }
+
+  async function handleSaveDeal(e) {
+    e.preventDefault();
+    setError("");
+    try {
+      await api.put(`/deals/${id}`, {
+        name: dealEditForm.name,
+        price: dealEditForm.price ? Number(dealEditForm.price) : null,
+        expected_close_date: dealEditForm.expected_close_date || null,
+        expected_invoice_date: dealEditForm.expected_invoice_date || null,
+        deposit_paid: dealEditForm.deposit_paid,
+      });
+      setEditingDeal(false);
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDeleteDeal() {
+    if (!window.confirm(`Opravdu smazat obchodní případ "${deal.name}"? Tato akce je nevratná.`)) return;
+    setError("");
+    try {
+      await api.delete(`/deals/${id}`);
+      window.location.href = company ? `/companies/${company.id}` : "/companies";
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function handleTransition(toStatus) {
     setTransitioning(true);
     setError("");
@@ -107,21 +180,14 @@ export default function DealDetailPage() {
     setCalcSaving(true);
     setError("");
     try {
-      const priceWithoutVat = Number(calcForm.price_without_vat) || 0;
-      const vatRate = Number(calcForm.vat_rate) || 0;
-      const vatAmount = Math.round(priceWithoutVat * vatRate * 100) / 100;
-      const priceWithVat = Math.round((priceWithoutVat + vatAmount) * 100) / 100;
-
       await api.post(`/deals/${id}/calculations`, {
         product_line: calcForm.product_line || null,
         wood_species: calcForm.wood_species || null,
         area_m2: calcForm.area_m2 ? Number(calcForm.area_m2) : null,
         distance_km: calcForm.distance_km ? Number(calcForm.distance_km) : null,
-        vat_rate: vatRate,
-        price_without_vat: priceWithoutVat,
-        vat_amount: vatAmount,
-        price_with_vat: priceWithVat,
-        unit_price_per_m2: calcForm.unit_price_per_m2 ? Number(calcForm.unit_price_per_m2) : null,
+        vat_rate: Number(calcForm.vat_rate) || 0,
+        discount_material_percent: Number(calcForm.discount_material_percent) || 0,
+        discount_installation_percent: Number(calcForm.discount_installation_percent) || 0,
         valid_until: calcForm.valid_until || null,
       });
       setCalcForm({
@@ -130,8 +196,8 @@ export default function DealDetailPage() {
         area_m2: "",
         distance_km: "",
         vat_rate: "0.21",
-        price_without_vat: "",
-        unit_price_per_m2: "",
+        discount_material_percent: "0",
+        discount_installation_percent: "0",
         valid_until: "",
       });
       setShowCalcForm(false);
@@ -140,6 +206,90 @@ export default function DealDetailPage() {
       setError(err.message);
     } finally {
       setCalcSaving(false);
+    }
+  }
+
+  function getItemForm(calcId) {
+    return itemForms[calcId] || emptyItemForm;
+  }
+
+  function setItemForm(calcId, patch) {
+    setItemForms((prev) => ({ ...prev, [calcId]: { ...getItemForm(calcId), ...patch } }));
+  }
+
+  async function handleAddItem(calcId) {
+    const form = getItemForm(calcId);
+    if (!form.name || !form.quantity || !form.unit_price) {
+      setError("Vyplň prosím název, množství a jednotkovou cenu položky.");
+      return;
+    }
+    setError("");
+    try {
+      const updatedCalc = await api.post(`/calculations/${calcId}/items`, {
+        category: form.category,
+        name: form.name,
+        unit: form.unit || null,
+        quantity: Number(form.quantity),
+        unit_price: Number(form.unit_price),
+        display_order: (calcItems[calcId] || []).length,
+      });
+      setCalculations((prev) => prev.map((c) => (c.id === calcId ? updatedCalc : c)));
+      const items = await api.get(`/calculations/${calcId}/items`);
+      setCalcItems((prev) => ({ ...prev, [calcId]: items }));
+      setItemForms((prev) => ({ ...prev, [calcId]: emptyItemForm }));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDeleteItem(calcId, itemId) {
+    setError("");
+    try {
+      const updatedCalc = await api.delete(`/calculation-items/${itemId}`);
+      setCalculations((prev) => prev.map((c) => (c.id === calcId ? updatedCalc : c)));
+      const items = await api.get(`/calculations/${calcId}/items`);
+      setCalcItems((prev) => ({ ...prev, [calcId]: items }));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function toggleCalcExpanded(calcId) {
+    setExpandedCalcs((prev) => ({ ...prev, [calcId]: !prev[calcId] }));
+  }
+
+  function startEditItem(item) {
+    setEditingItemId(item.id);
+    setEditItemForm({
+      category: item.category,
+      name: item.name,
+      unit: item.unit || "",
+      quantity: String(item.quantity),
+      unit_price: String(item.unit_price),
+    });
+  }
+
+  function cancelEditItem() {
+    setEditingItemId(null);
+    setEditItemForm(emptyItemForm);
+  }
+
+  async function handleSaveEditItem(calcId, itemId) {
+    setError("");
+    try {
+      const updatedCalc = await api.put(`/calculation-items/${itemId}`, {
+        category: editItemForm.category,
+        name: editItemForm.name,
+        unit: editItemForm.unit || null,
+        quantity: Number(editItemForm.quantity),
+        unit_price: Number(editItemForm.unit_price),
+      });
+      setCalculations((prev) => prev.map((c) => (c.id === calcId ? updatedCalc : c)));
+      const items = await api.get(`/calculations/${calcId}/items`);
+      setCalcItems((prev) => ({ ...prev, [calcId]: items }));
+      cancelEditItem();
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -152,7 +302,6 @@ export default function DealDetailPage() {
   }
 
   const nextStatus = NEXT_MANUAL_STATUS[deal.status];
-  const activeCalc = calculations.find((c) => c.is_active);
 
   return (
     <ProtectedShell>
@@ -168,23 +317,119 @@ export default function DealDetailPage() {
               "—"
             )}
           </p>
+          <div style={{ fontSize: 12.5, color: "var(--ink-600)", display: "flex", gap: 16, marginTop: -8, marginBottom: 16 }}>
+            <span>
+              {CLOSE_DATE_EDITABLE_STATUSES.includes(deal.status) ? "Odhad uzavření" : "Uzavřeno"}:{" "}
+              <strong>{formatDateOnly(deal.expected_close_date)}</strong>
+            </span>
+            <span>
+              {deal.status === INVOICE_DATE_LOCKED_STATUS ? "Fakturováno" : "Odhad fakturace"}:{" "}
+              <strong>{formatDateOnly(deal.expected_invoice_date)}</strong>
+            </span>
+          </div>
         </div>
-        <span className="badge" style={{ background: STATUS_COLORS[deal.status], fontSize: 13 }}>
-          {deal.status}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span className="badge" style={{ background: STATUS_COLORS[deal.status], fontSize: 13 }}>
+            {deal.status}
+          </span>
+          {!editingDeal && (
+            <>
+              <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 12.5 }} onClick={startEditDeal}>
+                Upravit
+              </button>
+              <button className="btn btn-danger" style={{ padding: "5px 10px", fontSize: 12.5 }} onClick={handleDeleteDeal}>
+                Smazat
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+
+      {editingDeal && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <form onSubmit={handleSaveDeal}>
+            <div className="field">
+              <label>Název případu</label>
+              <input
+                required
+                value={dealEditForm.name}
+                onChange={(e) => setDealEditForm({ ...dealEditForm, name: e.target.value })}
+              />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="field">
+                <label>Cena (Kč)</label>
+                <input
+                  type="number"
+                  value={dealEditForm.price}
+                  onChange={(e) => setDealEditForm({ ...dealEditForm, price: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={dealEditForm.deposit_paid}
+                    onChange={(e) => setDealEditForm({ ...dealEditForm, deposit_paid: e.target.checked })}
+                    style={{ marginRight: 6 }}
+                  />
+                  Záloha zaplacena
+                </label>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="field">
+                <label>
+                  {CLOSE_DATE_EDITABLE_STATUSES.includes(deal.status) ? "Odhadované uzavření" : "Datum uzavření (skutečné)"}
+                </label>
+                <input
+                  type="date"
+                  value={dealEditForm.expected_close_date}
+                  onChange={(e) => setDealEditForm({ ...dealEditForm, expected_close_date: e.target.value })}
+                  disabled={!CLOSE_DATE_EDITABLE_STATUSES.includes(deal.status)}
+                />
+                {!CLOSE_DATE_EDITABLE_STATUSES.includes(deal.status) && (
+                  <div style={{ fontSize: 11.5, color: "var(--ink-400)", marginTop: 3 }}>
+                    Zaznamenáno automaticky při přechodu do stavu Objednávka.
+                  </div>
+                )}
+              </div>
+              <div className="field">
+                <label>
+                  {deal.status === INVOICE_DATE_LOCKED_STATUS ? "Datum fakturace (skutečné)" : "Odhadovaná fakturace"}
+                </label>
+                <input
+                  type="date"
+                  value={dealEditForm.expected_invoice_date}
+                  onChange={(e) => setDealEditForm({ ...dealEditForm, expected_invoice_date: e.target.value })}
+                  disabled={deal.status === INVOICE_DATE_LOCKED_STATUS}
+                />
+                {deal.status === INVOICE_DATE_LOCKED_STATUS && (
+                  <div style={{ fontSize: 11.5, color: "var(--ink-400)", marginTop: 3 }}>
+                    Zaznamenáno automaticky při přechodu do stavu Fakturováno.
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-primary" type="submit">
+                Uložit
+              </button>
+              <button className="btn btn-secondary" type="button" onClick={() => setEditingDeal(false)}>
+                Zrušit
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ fontWeight: 600, marginBottom: 12 }}>Přechod stavu</div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {nextStatus && (
-            <button
-              className="btn btn-primary"
-              disabled={transitioning}
-              onClick={() => handleTransition(nextStatus)}
-            >
+            <button className="btn btn-primary" disabled={transitioning} onClick={() => handleTransition(nextStatus)}>
               Přesunout do: {nextStatus}
             </button>
           )}
@@ -194,28 +439,28 @@ export default function DealDetailPage() {
             </div>
           )}
           {deal.status !== "Ztraceno" && deal.status !== "Fakturováno" && (
-            <button
-              className="btn btn-danger"
-              disabled={transitioning}
-              onClick={() => handleTransition("Ztraceno")}
-            >
+            <button className="btn btn-danger" disabled={transitioning} onClick={() => handleTransition("Ztraceno")}>
               Označit jako ztracené
             </button>
           )}
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <div style={{ fontWeight: 600 }}>Kalkulace</div>
-            <button className="btn btn-secondary" onClick={() => setShowCalcForm(!showCalcForm)}>
-              {showCalcForm ? "Zrušit" : "+ Nová kalkulace"}
-            </button>
-          </div>
+      {/* --- Kalkulace --- */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontWeight: 600 }}>Kalkulace</div>
+          <button className="btn btn-secondary" onClick={() => setShowCalcForm(!showCalcForm)}>
+            {showCalcForm ? "Zrušit" : "+ Nová kalkulace"}
+          </button>
+        </div>
 
-          {showCalcForm && (
-            <form onSubmit={handleCreateCalculation} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--paper-200)" }}>
+        {showCalcForm && (
+          <form
+            onSubmit={handleCreateCalculation}
+            style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--paper-200)" }}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="field">
                 <label>Produktová řada</label>
                 <input
@@ -232,81 +477,336 @@ export default function DealDetailPage() {
                   placeholder="např. Modřín"
                 />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div className="field">
-                  <label>Plocha (m²)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={calcForm.area_m2}
-                    onChange={(e) => setCalcForm({ ...calcForm, area_m2: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>Vzdálenost (km)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={calcForm.distance_km}
-                    onChange={(e) => setCalcForm({ ...calcForm, distance_km: e.target.value })}
-                  />
-                </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div className="field">
+                <label>Plocha (m²)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={calcForm.area_m2}
+                  onChange={(e) => setCalcForm({ ...calcForm, area_m2: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>Vzdálenost (km)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={calcForm.distance_km}
+                  onChange={(e) => setCalcForm({ ...calcForm, distance_km: e.target.value })}
+                />
               </div>
               <div className="field">
                 <label>Sazba DPH</label>
-                <select
-                  value={calcForm.vat_rate}
-                  onChange={(e) => setCalcForm({ ...calcForm, vat_rate: e.target.value })}
-                >
+                <select value={calcForm.vat_rate} onChange={(e) => setCalcForm({ ...calcForm, vat_rate: e.target.value })}>
                   <option value="0.21">21 %</option>
                   <option value="0.12">12 %</option>
                   <option value="0">0 %</option>
                 </select>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div className="field">
-                  <label>Cena bez DPH (Kč) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={calcForm.price_without_vat}
-                    onChange={(e) => setCalcForm({ ...calcForm, price_without_vat: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>Cena za m² (Kč)</label>
-                  <input
-                    type="number"
-                    value={calcForm.unit_price_per_m2}
-                    onChange={(e) => setCalcForm({ ...calcForm, unit_price_per_m2: e.target.value })}
-                  />
-                </div>
-              </div>
-              {calcForm.price_without_vat && (
-                <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 12 }}>
-                  DPH a cena s DPH se dopočítají automaticky podle zvolené sazby.
-                </div>
-              )}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="field">
-                <label>Platnost nabídky do</label>
+                <label>Sleva na materiál (%)</label>
                 <input
-                  type="date"
-                  value={calcForm.valid_until}
-                  onChange={(e) => setCalcForm({ ...calcForm, valid_until: e.target.value })}
+                  type="number"
+                  step="0.1"
+                  value={calcForm.discount_material_percent}
+                  onChange={(e) => setCalcForm({ ...calcForm, discount_material_percent: e.target.value })}
                 />
               </div>
-              <button className="btn btn-primary" type="submit" disabled={calcSaving}>
-                {calcSaving ? "Ukládám…" : "Uložit kalkulaci"}
-              </button>
-            </form>
-          )}
+              <div className="field">
+                <label>Sleva na montáž (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={calcForm.discount_installation_percent}
+                  onChange={(e) => setCalcForm({ ...calcForm, discount_installation_percent: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label>Platnost nabídky do</label>
+              <input
+                type="date"
+                value={calcForm.valid_until}
+                onChange={(e) => setCalcForm({ ...calcForm, valid_until: e.target.value })}
+              />
+            </div>
+            <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 12 }}>
+              Po uložení přidej jednotlivé položky (materiál, práci, dopravu) - cena se dopočítá
+              automaticky z jejich součtu.
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={calcSaving}>
+              {calcSaving ? "Ukládám…" : "Vytvořit kalkulaci"}
+            </button>
+          </form>
+        )}
 
-          {calculations.length === 0 ? (
-            <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádná kalkulace</div>
-          ) : (
-            calculations.map((c) => (
+        {calculations.length === 0 ? (
+          <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádná kalkulace</div>
+        ) : (
+          calculations.map((c) => {
+            const items = calcItems[c.id] || [];
+            const form = getItemForm(c.id);
+            const isExpanded = !!expandedCalcs[c.id];
+            return (
               <div
                 key={c.id}
+                style={{
+                  marginBottom: 16,
+                  paddingBottom: 16,
+                  borderBottom: "1px solid var(--paper-200)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    cursor: "pointer",
+                    padding: "6px 0",
+                  }}
+                  onClick={() => toggleCalcExpanded(c.id)}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span
+                      style={{
+                        fontSize: 20,
+                        color: "var(--ink-600)",
+                        width: 22,
+                        display: "inline-block",
+                        textAlign: "center",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {isExpanded ? "▾" : "▸"}
+                    </span>
+                    <strong style={{ fontSize: 14 }}>
+                      {c.product_line || "—"} {c.wood_species ? `/ ${c.wood_species}` : ""}
+                    </strong>
+                    {c.is_active && <span className="badge" style={{ background: "var(--success)" }}>aktivní</span>}
+                  </div>
+                  <strong className="mono" style={{ fontSize: 14 }}>{money(c.price_with_vat)}</strong>
+                </div>
+
+                {isExpanded && (
+                  <div style={{ marginTop: 12 }}>
+                    {(c.discount_material_percent > 0 || c.discount_installation_percent > 0) && (
+                      <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 8 }}>
+                        Sleva materiál: {Number(c.discount_material_percent)} % · Sleva montáž:{" "}
+                        {Number(c.discount_installation_percent)} %
+                      </div>
+                    )}
+
+                    {items.length > 0 && (
+                      <table className="table" style={{ marginBottom: 10 }}>
+                        <thead>
+                          <tr>
+                            <th>Kategorie</th>
+                            <th>Položka</th>
+                            <th>Množství</th>
+                            <th>Jedn. cena</th>
+                            <th>Celkem</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((it) =>
+                            editingItemId === it.id ? (
+                              <tr key={it.id}>
+                                <td>
+                                  <select
+                                    value={editItemForm.category}
+                                    onChange={(e) => setEditItemForm({ ...editItemForm, category: e.target.value })}
+                                    style={{ fontSize: 12.5, padding: "4px 6px" }}
+                                  >
+                                    {CATEGORIES.map((cat) => (
+                                      <option key={cat} value={cat}>
+                                        {cat}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td>
+                                  <input
+                                    value={editItemForm.name}
+                                    onChange={(e) => setEditItemForm({ ...editItemForm, name: e.target.value })}
+                                    style={{ fontSize: 13, padding: "4px 6px", width: "100%" }}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editItemForm.quantity}
+                                    onChange={(e) => setEditItemForm({ ...editItemForm, quantity: e.target.value })}
+                                    style={{ fontSize: 13, padding: "4px 6px", width: 70 }}
+                                  />
+                                  <input
+                                    value={editItemForm.unit}
+                                    onChange={(e) => setEditItemForm({ ...editItemForm, unit: e.target.value })}
+                                    placeholder="jedn."
+                                    style={{ fontSize: 13, padding: "4px 6px", width: 50, marginLeft: 4 }}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editItemForm.unit_price}
+                                    onChange={(e) => setEditItemForm({ ...editItemForm, unit_price: e.target.value })}
+                                    style={{ fontSize: 13, padding: "4px 6px", width: 90 }}
+                                  />
+                                </td>
+                                <td className="mono">
+                                  {money(Number(editItemForm.quantity || 0) * Number(editItemForm.unit_price || 0))}
+                                </td>
+                                <td style={{ whiteSpace: "nowrap" }}>
+                                  <button
+                                    className="btn btn-primary"
+                                    style={{ padding: "3px 8px", fontSize: 11.5, marginRight: 4 }}
+                                    onClick={() => handleSaveEditItem(c.id, it.id)}
+                                  >
+                                    Uložit
+                                  </button>
+                                  <button
+                                    className="btn btn-secondary"
+                                    style={{ padding: "3px 8px", fontSize: 11.5 }}
+                                    onClick={cancelEditItem}
+                                  >
+                                    Zrušit
+                                  </button>
+                                </td>
+                              </tr>
+                            ) : (
+                              <tr key={it.id}>
+                                <td style={{ fontSize: 12.5, color: "var(--ink-600)" }}>{it.category}</td>
+                                <td>{it.name}</td>
+                                <td className="mono">
+                                  {Number(it.quantity)} {it.unit || ""}
+                                </td>
+                                <td className="mono">{money(it.unit_price)}</td>
+                                <td className="mono">{money(Number(it.quantity) * Number(it.unit_price))}</td>
+                                <td style={{ whiteSpace: "nowrap" }}>
+                                  <button
+                                    className="btn btn-secondary"
+                                    style={{ padding: "3px 8px", fontSize: 11.5, marginRight: 4 }}
+                                    onClick={() => startEditItem(it)}
+                                  >
+                                    Upravit
+                                  </button>
+                                  <button
+                                    className="btn btn-danger"
+                                    style={{ padding: "3px 8px", fontSize: 11.5 }}
+                                    onClick={() => handleDeleteItem(c.id, it.id)}
+                                  >
+                                    Smazat
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          )}
+                        </tbody>
+                      </table>
+                    )}
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "110px 1.5fr 80px 90px 100px auto",
+                        gap: 6,
+                        alignItems: "end",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>Kategorie</label>
+                        <select value={form.category} onChange={(e) => setItemForm(c.id, { category: e.target.value })}>
+                          {CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>Název položky</label>
+                        <input value={form.name} onChange={(e) => setItemForm(c.id, { name: e.target.value })} />
+                      </div>
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>Jednotka</label>
+                        <input
+                          value={form.unit}
+                          onChange={(e) => setItemForm(c.id, { unit: e.target.value })}
+                          placeholder="m²"
+                        />
+                      </div>
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>Množství</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={form.quantity}
+                          onChange={(e) => setItemForm(c.id, { quantity: e.target.value })}
+                        />
+                      </div>
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>Jedn. cena</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={form.unit_price}
+                          onChange={(e) => setItemForm(c.id, { unit_price: e.target.value })}
+                        />
+                      </div>
+                      <button className="btn btn-secondary" onClick={() => handleAddItem(c.id)}>
+                        + Přidat
+                      </button>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 20,
+                        fontSize: 13.5,
+                        paddingTop: 8,
+                        borderTop: "1px solid var(--paper-200)",
+                      }}
+                    >
+                      <div>
+                        Bez DPH: <strong className="mono">{money(c.price_without_vat)}</strong>
+                      </div>
+                      <div>
+                        DPH: <strong className="mono">{money(c.vat_amount)}</strong>
+                      </div>
+                      <div>
+                        Celkem: <strong className="mono">{money(c.price_with_vat)}</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* --- Dokumenty --- */}
+      <div className="card">
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>Dokumenty</div>
+        {documents.length === 0 ? (
+          <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádné dokumenty</div>
+        ) : (
+          documents.map((d) => {
+            const views = documentViews[d.id];
+            const viewCount = views ? views.length : null;
+
+            return (
+              <div
+                key={d.id}
                 style={{
                   fontSize: 13.5,
                   marginBottom: 10,
@@ -314,112 +814,69 @@ export default function DealDetailPage() {
                   borderBottom: "1px solid var(--paper-200)",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <strong>{c.product_line || "—"} {c.wood_species ? `/ ${c.wood_species}` : ""}</strong>
-                  {c.is_active && (
-                    <span className="badge" style={{ background: "var(--success)" }}>aktivní</span>
-                  )}
+                <div>
+                  <strong>{d.document_type}</strong> {d.version > 1 ? `(v${d.version})` : ""}
                 </div>
-                <div className="mono" style={{ color: "var(--ink-600)" }}>
-                  {c.price_with_vat ? Number(c.price_with_vat).toLocaleString("cs-CZ") + " Kč s DPH" : "—"}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+                <div style={{ color: "var(--ink-600)", marginBottom: 6 }}>Vytvořeno: {formatDate(d.created_at)}</div>
 
-        <div className="card">
-          <div style={{ fontWeight: 600, marginBottom: 10 }}>Dokumenty</div>
-          {documents.length === 0 ? (
-            <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádné dokumenty</div>
-          ) : (
-            documents.map((d) => {
-              const views = documentViews[d.id];
-              const viewCount = views ? views.length : null;
-              const lastView = views && views.length > 0 ? views[0] : null;
+                {d.document_type === "Nabídka" && (
+                  <>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: "5px 10px", fontSize: 12.5 }}
+                        onClick={() => handleCopyLink(d.access_token, d.id)}
+                      >
+                        {copiedDoc === d.id ? "Zkopírováno ✓" : "Zkopírovat veřejný odkaz"}
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: "5px 10px", fontSize: 12.5 }}
+                        onClick={() => handleToggleViews(d.id)}
+                      >
+                        {expandedDoc === d.id ? "Skrýt zobrazení" : "Zobrazit sledování"}
+                      </button>
+                    </div>
 
-              return (
-                <div
-                  key={d.id}
-                  style={{
-                    fontSize: 13.5,
-                    marginBottom: 10,
-                    paddingBottom: 10,
-                    borderBottom: "1px solid var(--paper-200)",
-                  }}
-                >
-                  <div>
-                    <strong>{d.document_type}</strong> {d.version > 1 ? `(v${d.version})` : ""}
-                  </div>
-                  <div style={{ color: "var(--ink-600)", marginBottom: 6 }}>
-                    Vytvořeno: {formatDate(d.created_at)}
-                  </div>
-
-                  {d.document_type === "Nabídka" && (
-                    <>
-                      <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                        <button
-                          className="btn btn-secondary"
-                          style={{ padding: "5px 10px", fontSize: 12.5 }}
-                          onClick={() => handleCopyLink(d.access_token, d.id)}
-                        >
-                          {copiedDoc === d.id ? "Zkopírováno ✓" : "Zkopírovat veřejný odkaz"}
-                        </button>
-                        <button
-                          className="btn btn-secondary"
-                          style={{ padding: "5px 10px", fontSize: 12.5 }}
-                          onClick={() => handleToggleViews(d.id)}
-                        >
-                          {expandedDoc === d.id ? "Skrýt zobrazení" : "Zobrazit sledování"}
-                        </button>
-                      </div>
-
-                      {expandedDoc === d.id && (
-                        <div
-                          style={{
-                            background: "var(--paper-50)",
-                            borderRadius: 6,
-                            padding: "10px 12px",
-                            marginTop: 4,
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                            <div style={{ fontWeight: 600 }}>
-                              {views ? `Otevřeno ${viewCount}×` : "Sledování"}
-                            </div>
-                            <button
-                              className="btn btn-secondary"
-                              style={{ padding: "3px 8px", fontSize: 11.5 }}
-                              onClick={() => refreshViews(d.id)}
-                            >
-                              Obnovit
-                            </button>
-                          </div>
-                          {!views ? (
-                            <div style={{ color: "var(--ink-400)" }}>Načítám…</div>
-                          ) : views.length === 0 ? (
-                            <div style={{ color: "var(--ink-400)" }}>
-                              Nabídka zatím nebyla otevřena.
-                            </div>
-                          ) : (
-                            views.map((v) => (
-                              <div key={v.id} style={{ color: "var(--ink-600)", marginBottom: 3 }}>
-                                {formatDate(v.viewed_at)}
-                                {v.duration_seconds != null
-                                  ? ` · prohlíženo ${v.duration_seconds} s`
-                                  : " · doba čtení neznámá"}
-                              </div>
-                            ))
-                          )}
+                    {expandedDoc === d.id && (
+                      <div
+                        style={{
+                          background: "var(--paper-50)",
+                          borderRadius: 6,
+                          padding: "10px 12px",
+                          marginTop: 4,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <div style={{ fontWeight: 600 }}>{views ? `Otevřeno ${viewCount}×` : "Sledování"}</div>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ padding: "3px 8px", fontSize: 11.5 }}
+                            onClick={() => refreshViews(d.id)}
+                          >
+                            Obnovit
+                          </button>
                         </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
+                        {!views ? (
+                          <div style={{ color: "var(--ink-400)" }}>Načítám…</div>
+                        ) : views.length === 0 ? (
+                          <div style={{ color: "var(--ink-400)" }}>Nabídka zatím nebyla otevřena.</div>
+                        ) : (
+                          views.map((v) => (
+                            <div key={v.id} style={{ color: "var(--ink-600)", marginBottom: 3 }}>
+                              {formatDate(v.viewed_at)}
+                              {v.duration_seconds != null ? ` · prohlíženo ${v.duration_seconds} s` : " · doba čtení neznámá"}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </ProtectedShell>
   );

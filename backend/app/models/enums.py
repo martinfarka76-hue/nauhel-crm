@@ -23,3 +23,10 @@ class DocumentType(str, enum.Enum):
 class UserRole(str, enum.Enum):
     ADMIN = "Admin"
     OBCHODNIK = "Obchodník"
+
+
+class ItemCategory(str, enum.Enum):
+    MATERIAL = "Materiál"
+    PRACE = "Práce"
+    DOPRAVA = "Doprava"
+    OSTATNI = "Ostatní"

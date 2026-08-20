@@ -1,18 +1,27 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app import models  # noqa: F401 - zajišťuje registraci modelů
-from app.routers import company, contact, deal, auth, calculation, document, webhooks
+from app.routers import company, contact, deal, auth, calculation, document, webhooks, ares, stage_config
 from app.core.scheduler import start_scheduler
+from app.core.seed_data import seed_stage_config
+from app.database import SessionLocal
 
 logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    db = SessionLocal()
+    try:
+        seed_stage_config(db)
+    finally:
+        db.close()
     scheduler = start_scheduler()
     yield
     scheduler.shutdown()
@@ -28,6 +37,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    """
+    Zachytí chyby databázové integrity (neplatný cizí klíč, porušené
+    omezení sloupce apod.) a vrátí srozumitelnou zprávu místo obecné
+    500 chyby. Typicky nastane při: odkazu na neexistující firmu/kontakt,
+    hodnotě mimo povolený rozsah (např. špatný formát vat_rate), nebo
+    mazání záznamu, na který se ještě něco odkazuje.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "Data nejde uložit - zkontroluj prosím, že odkazované záznamy "
+            "(např. firma, kontakt) existují, a že jsou čísla ve správném formátu. "
+            "Pokud mažeš záznam, na který se ještě něco odkazuje (např. firmu s "
+            "existujícími obchodními případy), smaž nejdřív tyto navázané záznamy."
+        },
+    )
+
 app.include_router(auth.router)
 app.include_router(company.router)
 app.include_router(contact.router)
@@ -35,6 +64,8 @@ app.include_router(deal.router)
 app.include_router(calculation.router)
 app.include_router(document.router)
 app.include_router(webhooks.router)
+app.include_router(ares.router)
+app.include_router(stage_config.router)
 
 
 @app.get("/")

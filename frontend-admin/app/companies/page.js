@@ -11,6 +11,8 @@ export default function CompaniesPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", ico: "", dic: "", address: "" });
   const [saving, setSaving] = useState(false);
+  const [aresLoading, setAresLoading] = useState(false);
+  const [aresError, setAresError] = useState("");
 
   function loadCompanies() {
     setLoading(true);
@@ -39,6 +41,28 @@ export default function CompaniesPage() {
     }
   }
 
+  async function handleAresLookup() {
+    if (!form.ico) {
+      setAresError("Nejdřív vyplň IČO.");
+      return;
+    }
+    setAresLoading(true);
+    setAresError("");
+    try {
+      const result = await api.get(`/ares/${form.ico}`);
+      setForm({
+        ...form,
+        name: result.name || form.name,
+        address: result.address || form.address,
+        dic: result.dic_guess || form.dic,
+      });
+    } catch (err) {
+      setAresError(err.message);
+    } finally {
+      setAresLoading(false);
+    }
+  }
+
   return (
     <ProtectedShell>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -57,18 +81,36 @@ export default function CompaniesPage() {
         <div className="card" style={{ marginBottom: 20 }}>
           <form onSubmit={handleCreate}>
             <div className="field">
+              <label>IČO</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={form.ico}
+                  onChange={(e) => setForm({ ...form, ico: e.target.value })}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleAresLookup}
+                  disabled={aresLoading}
+                >
+                  {aresLoading ? "Hledám…" : "Vyhledat v ARES"}
+                </button>
+              </div>
+              {aresError && (
+                <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 4 }}>{aresError}</div>
+              )}
+              <div style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 4 }}>
+                Zadej IČO a klikni na "Vyhledat v ARES" - doplní název a adresu. DIČ je jen odhad,
+                zkontroluj prosím jeho správnost.
+              </div>
+            </div>
+            <div className="field">
               <label>Název firmy *</label>
               <input
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label>IČO</label>
-              <input
-                value={form.ico}
-                onChange={(e) => setForm({ ...form, ico: e.target.value })}
               />
             </div>
             <div className="field">

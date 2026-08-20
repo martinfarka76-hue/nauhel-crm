@@ -132,28 +132,58 @@ export default function PublicOfferPage() {
                   <span className="offer-row-value mono">{Number(calc.area_m2)} m²</span>
                 </div>
               )}
-              {calc.unit_price_per_m2 && (
-                <div className="offer-row">
-                  <span className="offer-row-label">Cena za m²</span>
-                  <span className="offer-row-value mono">
-                    {formatMoney(calc.unit_price_per_m2)}
-                  </span>
+
+              {calc.items && calc.items.length > 0 && (
+                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16, marginBottom: 4 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--line)" }}>
+                      <th style={{ textAlign: "left", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600 }}>Položka</th>
+                      <th style={{ textAlign: "right", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600 }}>Množství</th>
+                      <th style={{ textAlign: "right", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600 }}>Jedn. cena</th>
+                      <th style={{ textAlign: "right", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600 }}>Celkem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {calc.items.map((it, idx) => {
+                      const lineTotal = Number(it.quantity) * Number(it.unit_price);
+                      return (
+                        <tr key={idx} style={{ borderBottom: "1px solid var(--paper-200)" }}>
+                          <td style={{ padding: "8px 0", fontSize: 13.5 }}>{it.name}</td>
+                          <td className="mono" style={{ padding: "8px 0", fontSize: 13, textAlign: "right" }}>
+                            {Number(it.quantity)} {it.unit || ""}
+                          </td>
+                          <td className="mono" style={{ padding: "8px 0", fontSize: 13, textAlign: "right" }}>
+                            {formatMoney(it.unit_price)}
+                          </td>
+                          <td className="mono" style={{ padding: "8px 0", fontSize: 13, textAlign: "right" }}>
+                            {formatMoney(lineTotal)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+
+              {(Number(calc.discount_material_percent) > 0 || Number(calc.discount_installation_percent) > 0) && (
+                <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 8 }}>
+                  {Number(calc.discount_material_percent) > 0 && (
+                    <div>Sleva na materiál: {Number(calc.discount_material_percent)} %</div>
+                  )}
+                  {Number(calc.discount_installation_percent) > 0 && (
+                    <div>Sleva na montáž: {Number(calc.discount_installation_percent)} %</div>
+                  )}
                 </div>
               )}
-              {calc.price_without_vat && (
-                <div className="offer-row">
-                  <span className="offer-row-label">Cena bez DPH</span>
-                  <span className="offer-row-value mono">
-                    {formatMoney(calc.price_without_vat)}
-                  </span>
-                </div>
-              )}
-              {calc.vat_amount && (
-                <div className="offer-row">
-                  <span className="offer-row-label">DPH</span>
-                  <span className="offer-row-value mono">{formatMoney(calc.vat_amount)}</span>
-                </div>
-              )}
+
+              <div className="offer-row">
+                <span className="offer-row-label">Mezisoučet bez DPH</span>
+                <span className="offer-row-value mono">{formatMoney(calc.price_without_vat)}</span>
+              </div>
+              <div className="offer-row">
+                <span className="offer-row-label">DPH</span>
+                <span className="offer-row-value mono">{formatMoney(calc.vat_amount)}</span>
+              </div>
               <div className="offer-total">
                 <span className="offer-total-label">Celkem s DPH</span>
                 <span className="offer-total-value mono">
