@@ -7,12 +7,15 @@ from app.core.dependencies import get_current_user
 from app.models.document import Document
 from app.models.document_view import DocumentView
 from app.models.deal import Deal
+from app.models.company import Company
+from app.models.calculation import Calculation
 from app.models.user import User
 from app.schemas.document import (
     DocumentCreate,
     DocumentUpdate,
     DocumentOut,
     DocumentPublicOut,
+    CalculationPublicOut,
     DocumentViewCreateResult,
     DocumentViewDurationUpdate,
 )
@@ -101,6 +104,25 @@ def view_public_document(access_token: str, request: Request, db: Session = Depe
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    deal = db.query(Deal).filter(Deal.id == document.deal_id).first()
+    company = db.query(Company).filter(Company.id == deal.company_id).first()
+
+    calculation_public = None
+    if document.calculation_id:
+        calc = db.query(Calculation).filter(Calculation.id == document.calculation_id).first()
+        if calc:
+            calculation_public = CalculationPublicOut.model_validate(calc)
+
+    public_document = DocumentPublicOut(
+        id=document.id,
+        document_type=document.document_type,
+        version=document.version,
+        created_at=document.created_at,
+        company_name=company.name,
+        deal_name=deal.name,
+        calculation=calculation_public,
+    )
+
     # Zaloguj zobrazení - IP z requestu (za reverse proxy by šlo číst X-Forwarded-For,
     # zatím jednoduše přímo z klienta)
     view = DocumentView(
@@ -111,7 +133,7 @@ def view_public_document(access_token: str, request: Request, db: Session = Depe
     db.commit()
     db.refresh(view)
 
-    return DocumentViewCreateResult(document=document, view_id=view.id)
+    return DocumentViewCreateResult(document=public_document, view_id=view.id)
 
 
 @router.patch("/public/documents/{access_token}/views/{view_id}", status_code=204)
