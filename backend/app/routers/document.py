@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,7 @@ from app.models.deal import Deal
 from app.models.company import Company
 from app.models.calculation import Calculation
 from app.models.user import User
+from app.models.enums import DocumentType
 from app.schemas.document import (
     DocumentCreate,
     DocumentUpdate,
@@ -25,6 +27,21 @@ router = APIRouter(tags=["documents"])
 
 
 # --- Interní endpointy (vyžadují přihlášení pro zápis) ---
+
+@router.get("/documents", response_model=list[DocumentOut])
+def list_all_documents(
+    document_type: Optional[DocumentType] = None,
+    company_id: Optional[uuid.UUID] = None,
+    db: Session = Depends(get_db),
+):
+    """Seznam všech dokumentů napříč všemi Deals - pro souhrnný přehled (nabídky/faktury/dodací listy)."""
+    query = db.query(Document)
+    if document_type:
+        query = query.filter(Document.document_type == document_type)
+    if company_id:
+        query = query.join(Deal, Document.deal_id == Deal.id).filter(Deal.company_id == company_id)
+    return query.order_by(Document.created_at.desc()).all()
+
 
 @router.get("/deals/{deal_id}/documents", response_model=list[DocumentOut])
 def list_documents_for_deal(deal_id: uuid.UUID, db: Session = Depends(get_db)):
@@ -137,6 +154,9 @@ def view_public_document(access_token: str, request: Request, db: Session = Depe
         version=document.version,
         created_at=document.created_at,
         company_name=company.name,
+        company_ico=company.ico,
+        company_dic=company.dic,
+        company_address=company.address,
         deal_name=deal.name,
         calculation=calculation_public,
     )

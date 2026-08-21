@@ -40,6 +40,7 @@ export default function ProtectedShell({ children }) {
     { href: "/", label: "Přehled" },
     { href: "/companies", label: "Firmy" },
     { href: "/contacts", label: "Kontakty" },
+    { href: "/documents", label: "Dokumenty" },
     { href: "/settings", label: "Nastavení" },
   ];
 

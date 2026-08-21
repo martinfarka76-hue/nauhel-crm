@@ -7,13 +7,22 @@ import { api } from "@/lib/api";
 import { STATUS_COLORS } from "@/lib/constants";
 
 const emptyContactForm = { first_name: "", last_name: "", email: "", phone: "", position: "" };
+const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  const utcIso = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
+  return new Date(utcIso).toLocaleString("cs-CZ");
+}
 
 export default function CompanyDetailPage() {
   const { id } = useParams();
   const [company, setCompany] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [deals, setDeals] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [error, setError] = useState("");
+  const [copiedId, setCopiedId] = useState(null);
 
   const [showDealForm, setShowDealForm] = useState(false);
   const [dealForm, setDealForm] = useState({
@@ -37,16 +46,31 @@ export default function CompanyDetailPage() {
       api.get(`/companies/${id}`),
       api.get(`/contacts?company_id=${id}`),
       api.get(`/deals?company_id=${id}`),
+      api.get(`/documents?company_id=${id}`),
     ])
-      .then(([c, ct, d]) => {
+      .then(([c, ct, d, docs]) => {
         setCompany(c);
         setContacts(ct);
         setDeals(d);
+        setDocuments(docs);
       })
       .catch((err) => setError(err.message));
   }
 
   useEffect(loadAll, [id]);
+
+  function handleCopyLink(accessToken, docId) {
+    const url = `${PUBLIC_URL}/n/${accessToken}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(docId);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  }
+
+  function dealNameFor(dealId) {
+    const deal = deals.find((d) => d.id === dealId);
+    return deal ? deal.name : "—";
+  }
 
   async function handleCreateDeal(e) {
     e.preventDefault();
@@ -481,6 +505,48 @@ export default function CompanyDetailPage() {
                   </span>
                 </td>
                 <td className="mono">{d.price ? Number(d.price).toLocaleString("cs-CZ") + " Kč" : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div style={{ fontWeight: 600, marginTop: 28, marginBottom: 12 }}>Dokumenty</div>
+      {documents.length === 0 ? (
+        <div className="empty-state">Zatím žádné dokumenty.</div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Typ</th>
+              <th>Obchodní případ</th>
+              <th>Vytvořeno</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {documents.map((doc) => (
+              <tr key={doc.id}>
+                <td style={{ fontWeight: 600 }}>
+                  {doc.document_type} {doc.version > 1 ? `(v${doc.version})` : ""}
+                </td>
+                <td>
+                  <a href={`/deals/${doc.deal_id}`} style={{ textDecoration: "underline" }}>
+                    {dealNameFor(doc.deal_id)}
+                  </a>
+                </td>
+                <td style={{ color: "var(--ink-600)" }}>{formatDate(doc.created_at)}</td>
+                <td>
+                  {doc.document_type === "Nabídka" && (
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: "4px 10px", fontSize: 12 }}
+                      onClick={() => handleCopyLink(doc.access_token, doc.id)}
+                    >
+                      {copiedId === doc.id ? "Zkopírováno ✓" : "Zkopírovat odkaz"}
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

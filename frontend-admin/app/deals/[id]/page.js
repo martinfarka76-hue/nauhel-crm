@@ -10,6 +10,28 @@ const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082
 const CATEGORIES = ["Materiál", "Práce", "Doprava", "Ostatní"];
 const PRODUCT_LINES = ["Atacama", "Mirage", "Ocaso"];
 
+const TRANSITION_EXPLANATIONS = {
+  "Kvalifikovaný lead":
+    'Přesunout případ do stavu "Kvalifikovaný lead"?',
+  Nabídka:
+    'Přesunout do stavu "Nabídka"? Vyžaduje existující aktivní kalkulaci - z ní se ' +
+    "automaticky vygeneruje nabídkový dokument (veřejný odkaz pro zákazníka). Ujisti se, " +
+    "že kalkulace obsahuje správné položky a ceny.",
+  Objednávka:
+    'Přesunout do stavu "Objednávka"? Tímto potvrzuješ, že zákazník nabídku přijal. ' +
+    "Zaznamená se skutečné datum uzavření. Další krok (Zálohová faktura) proběhne " +
+    "automaticky po elektronickém potvrzení objednávky zákazníkem.",
+  Vyrobeno:
+    'Přesunout do stavu "Vyrobeno"? Vyžaduje zaplacenou zálohu (checkbox "Záloha ' +
+    'zaplacena" v editaci případu) - jinak přechod selže. Automaticky se vytvoří dodací list.',
+  Fakturováno:
+    'Přesunout do stavu "Fakturováno"? Automaticky se vytvoří finální faktura a ' +
+    "zaznamená se skutečné datum fakturace.",
+  Ztraceno:
+    'Opravdu označit tento případ jako "Ztraceno"? Tuto akci lze později vrátit jen ' +
+    "ruční úpravou stavu.",
+};
+
 function formatDate(iso) {
   if (!iso) return "—";
   const utcIso = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
@@ -64,11 +86,15 @@ export default function DealDetailPage() {
     discount_material_percent: "0",
     discount_installation_percent: "0",
     valid_until: "",
+    delivery_terms: "6-8 týdnů od objednávky",
+    payment_terms: "Zálohová faktura 50 %, finální faktura se splatností dnem dodání",
   });
 
   const [itemForms, setItemForms] = useState({}); // { [calcId]: itemForm }
   const [expandedCalcs, setExpandedCalcs] = useState({}); // { [calcId]: bool }
   const [editingItemId, setEditingItemId] = useState(null);
+  const [editingCalcId, setEditingCalcId] = useState(null);
+  const [editCalcForm, setEditCalcForm] = useState(null);
   const [editItemForm, setEditItemForm] = useState(emptyItemForm);
 
   const [editingDeal, setEditingDeal] = useState(false);
@@ -179,7 +205,39 @@ export default function DealDetailPage() {
     }
   }
 
+  async function handleCreateNewOfferVersion() {
+    const activeCalc = calculations.find((c) => c.is_active);
+    if (!activeCalc) {
+      setError("Nejdřív musí existovat aktivní kalkulace, na kterou se má nabídka navázat.");
+      return;
+    }
+    const existingOffers = documents.filter((d) => d.document_type === "Nabídka");
+    const nextVersion = existingOffers.length + 1;
+    if (
+      !window.confirm(
+        `Vytvořit novou verzi nabídky (v${nextVersion}) navázanou na aktuálně aktivní kalkulaci ` +
+          `("${activeCalc.product_line || "—"}")? Starší verze zůstanou dostupné se svými odkazy, ` +
+          `nová bude označena jako Aktuální.`
+      )
+    )
+      return;
+    setError("");
+    try {
+      await api.post(`/deals/${id}/documents`, {
+        calculation_id: activeCalc.id,
+        document_type: "Nabídka",
+        version: nextVersion,
+      });
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function handleTransition(toStatus) {
+    const explanation = TRANSITION_EXPLANATIONS[toStatus] || `Opravdu chceš přesunout případ do stavu "${toStatus}"?`;
+    if (!window.confirm(explanation)) return;
+
     setTransitioning(true);
     setError("");
     try {
@@ -197,7 +255,7 @@ export default function DealDetailPage() {
     setCalcSaving(true);
     setError("");
     try {
-      await api.post(`/deals/${id}/calculations`, {
+      const newCalc = await api.post(`/deals/${id}/calculations`, {
         product_line: calcForm.product_line || null,
         wood_species: calcForm.wood_species || null,
         area_m2: calcForm.area_m2 ? Number(calcForm.area_m2) : null,
@@ -206,7 +264,10 @@ export default function DealDetailPage() {
         discount_material_percent: Number(calcForm.discount_material_percent) || 0,
         discount_installation_percent: Number(calcForm.discount_installation_percent) || 0,
         valid_until: calcForm.valid_until || null,
+        delivery_terms: calcForm.delivery_terms || null,
+        payment_terms: calcForm.payment_terms || null,
       });
+      setExpandedCalcs((prev) => ({ ...prev, [newCalc.id]: true }));
       setCalcForm({
         product_line: "",
         wood_species: "",
@@ -216,6 +277,8 @@ export default function DealDetailPage() {
         discount_material_percent: "0",
         discount_installation_percent: "0",
         valid_until: "",
+        delivery_terms: "6-8 týdnů od objednávky",
+        payment_terms: "Zálohová faktura 50 %, finální faktura se splatností dnem dodání",
       });
       setShowCalcForm(false);
       loadAll();
@@ -346,6 +409,45 @@ export default function DealDetailPage() {
       setCalculations((prev) => prev.map((c) => (c.id === calcId ? updatedCalc : c)));
       const items = await api.get(`/calculations/${calcId}/items`);
       setCalcItems((prev) => ({ ...prev, [calcId]: items }));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function startEditCalc(c) {
+    setEditingCalcId(c.id);
+    setEditCalcForm({
+      product_line: c.product_line || "",
+      wood_species: c.wood_species || "",
+      area_m2: c.area_m2 ?? "",
+      distance_km: c.distance_km ?? "",
+      vat_rate: c.vat_rate != null ? String(c.vat_rate) : "0.21",
+      discount_material_percent: c.discount_material_percent != null ? String(c.discount_material_percent) : "0",
+      discount_installation_percent:
+        c.discount_installation_percent != null ? String(c.discount_installation_percent) : "0",
+      valid_until: c.valid_until || "",
+      delivery_terms: c.delivery_terms || "",
+      payment_terms: c.payment_terms || "",
+    });
+  }
+
+  async function handleSaveCalc(calcId) {
+    setError("");
+    try {
+      const updatedCalc = await api.put(`/calculations/${calcId}`, {
+        product_line: editCalcForm.product_line || null,
+        wood_species: editCalcForm.wood_species || null,
+        area_m2: editCalcForm.area_m2 ? Number(editCalcForm.area_m2) : null,
+        distance_km: editCalcForm.distance_km ? Number(editCalcForm.distance_km) : null,
+        vat_rate: Number(editCalcForm.vat_rate) || 0,
+        discount_material_percent: Number(editCalcForm.discount_material_percent) || 0,
+        discount_installation_percent: Number(editCalcForm.discount_installation_percent) || 0,
+        valid_until: editCalcForm.valid_until || null,
+        delivery_terms: editCalcForm.delivery_terms || null,
+        payment_terms: editCalcForm.payment_terms || null,
+      });
+      setCalculations((prev) => prev.map((c) => (c.id === calcId ? updatedCalc : c)));
+      setEditingCalcId(null);
     } catch (err) {
       setError(err.message);
     }
@@ -637,6 +739,22 @@ export default function DealDetailPage() {
                 onChange={(e) => setCalcForm({ ...calcForm, valid_until: e.target.value })}
               />
             </div>
+            <div className="field">
+              <label>Termín realizace</label>
+              <input
+                value={calcForm.delivery_terms}
+                onChange={(e) => setCalcForm({ ...calcForm, delivery_terms: e.target.value })}
+                placeholder="např. 6-8 týdnů od objednávky"
+              />
+            </div>
+            <div className="field">
+              <label>Platební podmínky</label>
+              <input
+                value={calcForm.payment_terms}
+                onChange={(e) => setCalcForm({ ...calcForm, payment_terms: e.target.value })}
+                placeholder="např. Záloha 50 % při objednávce, doplatek při předání díla"
+              />
+            </div>
             <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 12 }}>
               Po uložení přidej jednotlivé položky (materiál, práci, dopravu) - cena se dopočítá
               automaticky z jejich součtu.
@@ -696,6 +814,146 @@ export default function DealDetailPage() {
 
                 {isExpanded && (
                   <div style={{ marginTop: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                      {editingCalcId !== c.id && (
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: "3px 8px", fontSize: 11.5 }}
+                          onClick={() => startEditCalc(c)}
+                        >
+                          Upravit hlavičku kalkulace
+                        </button>
+                      )}
+                    </div>
+
+                    {editingCalcId === c.id && (
+                      <div
+                        style={{
+                          background: "var(--paper-50)",
+                          borderRadius: 8,
+                          padding: 14,
+                          marginBottom: 14,
+                        }}
+                      >
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          <div className="field">
+                            <label>Produktová řada</label>
+                            <select
+                              value={editCalcForm.product_line}
+                              onChange={(e) => setEditCalcForm({ ...editCalcForm, product_line: e.target.value })}
+                            >
+                              <option value="">— vyber —</option>
+                              {PRODUCT_LINES.map((p) => (
+                                <option key={p} value={p}>
+                                  {p}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="field">
+                            <label>Dřevina</label>
+                            <input
+                              value={editCalcForm.wood_species}
+                              onChange={(e) => setEditCalcForm({ ...editCalcForm, wood_species: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                          <div className="field">
+                            <label>Plocha (m²)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editCalcForm.area_m2}
+                              onChange={(e) => setEditCalcForm({ ...editCalcForm, area_m2: e.target.value })}
+                            />
+                          </div>
+                          <div className="field">
+                            <label>Vzdálenost (km)</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={editCalcForm.distance_km}
+                              onChange={(e) => setEditCalcForm({ ...editCalcForm, distance_km: e.target.value })}
+                            />
+                          </div>
+                          <div className="field">
+                            <label>Sazba DPH</label>
+                            <select
+                              value={editCalcForm.vat_rate}
+                              onChange={(e) => setEditCalcForm({ ...editCalcForm, vat_rate: e.target.value })}
+                            >
+                              <option value="0.21">21 %</option>
+                              <option value="0.12">12 %</option>
+                              <option value="0">0 %</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          <div className="field">
+                            <label>Sleva na materiál (%)</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={editCalcForm.discount_material_percent}
+                              onChange={(e) =>
+                                setEditCalcForm({ ...editCalcForm, discount_material_percent: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="field">
+                            <label>Sleva na montáž (%)</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={editCalcForm.discount_installation_percent}
+                              onChange={(e) =>
+                                setEditCalcForm({ ...editCalcForm, discount_installation_percent: e.target.value })
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="field">
+                          <label>Platnost nabídky do</label>
+                          <input
+                            type="date"
+                            value={editCalcForm.valid_until}
+                            onChange={(e) => setEditCalcForm({ ...editCalcForm, valid_until: e.target.value })}
+                          />
+                        </div>
+                        <div className="field">
+                          <label>Termín realizace</label>
+                          <input
+                            value={editCalcForm.delivery_terms}
+                            onChange={(e) => setEditCalcForm({ ...editCalcForm, delivery_terms: e.target.value })}
+                          />
+                        </div>
+                        <div className="field">
+                          <label>Platební podmínky</label>
+                          <input
+                            value={editCalcForm.payment_terms}
+                            onChange={(e) => setEditCalcForm({ ...editCalcForm, payment_terms: e.target.value })}
+                          />
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            className="btn btn-primary"
+                            style={{ padding: "6px 14px", fontSize: 13 }}
+                            onClick={() => handleSaveCalc(c.id)}
+                          >
+                            Uložit
+                          </button>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ padding: "6px 14px", fontSize: 13 }}
+                            onClick={() => setEditingCalcId(null)}
+                          >
+                            Zrušit
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {(c.discount_material_percent > 0 || c.discount_installation_percent > 0) && (
                       <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 8 }}>
                         Sleva materiál: {Number(c.discount_material_percent)} % · Sleva montáž:{" "}
@@ -901,7 +1159,11 @@ export default function DealDetailPage() {
                           onChange={(e) => setItemForm(c.id, { unit_price: e.target.value })}
                         />
                       </div>
-                      <button className="btn btn-secondary" onClick={() => handleAddItem(c.id)}>
+                      <button
+                        className="btn"
+                        style={{ background: "var(--success)", color: "#fff", border: "none" }}
+                        onClick={() => handleAddItem(c.id)}
+                      >
                         + Přidat
                       </button>
                     </div>
@@ -936,13 +1198,26 @@ export default function DealDetailPage() {
 
       {/* --- Dokumenty --- */}
       <div className="card">
-        <div style={{ fontWeight: 600, marginBottom: 10 }}>Dokumenty</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontWeight: 600 }}>Dokumenty</div>
+          <button
+            className="btn btn-secondary"
+            style={{ padding: "4px 10px", fontSize: 12.5 }}
+            onClick={handleCreateNewOfferVersion}
+          >
+            + Nová verze nabídky
+          </button>
+        </div>
         {documents.length === 0 ? (
           <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádné dokumenty</div>
         ) : (
           documents.map((d) => {
             const views = documentViews[d.id];
             const viewCount = views ? views.length : null;
+
+            const isLatestOfType =
+              d.version ===
+              Math.max(...documents.filter((x) => x.document_type === d.document_type).map((x) => x.version));
 
             return (
               <div
@@ -955,7 +1230,15 @@ export default function DealDetailPage() {
                 }}
               >
                 <div>
-                  <strong>{d.document_type}</strong> {d.version > 1 ? `(v${d.version})` : ""}
+                  <strong>{d.document_type}</strong> (v{d.version})
+                  {isLatestOfType && (
+                    <span
+                      className="badge"
+                      style={{ background: "var(--success)", marginLeft: 8, fontSize: 10.5 }}
+                    >
+                      Aktuální
+                    </span>
+                  )}
                 </div>
                 <div style={{ color: "var(--ink-600)", marginBottom: 6 }}>Vytvořeno: {formatDate(d.created_at)}</div>
 

@@ -55,6 +55,8 @@ class CalculationPublicOut(BaseModel):
     price_with_vat: Optional[Decimal]
     unit_price_per_m2: Optional[Decimal]
     valid_until: Optional[date]
+    delivery_terms: Optional[str]
+    payment_terms: Optional[str]
     items: list[CalculationItemPublicOut] = []
 
 
@@ -67,6 +69,9 @@ class DocumentPublicOut(BaseModel):
     version: int
     created_at: datetime
     company_name: str
+    company_ico: Optional[str] = None
+    company_dic: Optional[str] = None
+    company_address: Optional[str] = None
     deal_name: str
     calculation: Optional[CalculationPublicOut] = None
 

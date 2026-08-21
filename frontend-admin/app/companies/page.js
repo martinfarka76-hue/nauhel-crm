@@ -18,7 +18,7 @@ export default function CompaniesPage() {
     setLoading(true);
     api
       .get("/companies")
-      .then(setCompanies)
+      .then((data) => setCompanies([...data].sort((a, b) => a.name.localeCompare(b.name, "cs"))))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }

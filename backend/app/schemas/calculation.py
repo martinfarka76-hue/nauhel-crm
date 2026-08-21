@@ -18,6 +18,8 @@ class CalculationCreate(BaseModel):
     discount_material_percent: Decimal = Decimal("0")
     discount_installation_percent: Decimal = Decimal("0")
     valid_until: Optional[date] = None
+    delivery_terms: Optional[str] = None
+    payment_terms: Optional[str] = None
     raw_snapshot: Optional[dict[str, Any]] = None
 
 
@@ -30,6 +32,8 @@ class CalculationUpdate(BaseModel):
     discount_material_percent: Optional[Decimal] = None
     discount_installation_percent: Optional[Decimal] = None
     valid_until: Optional[date] = None
+    delivery_terms: Optional[str] = None
+    payment_terms: Optional[str] = None
     raw_snapshot: Optional[dict[str, Any]] = None
 
 
@@ -53,6 +57,8 @@ class CalculationOut(BaseModel):
     unit_price_per_m2: Optional[Decimal]
     margin_total: Optional[Decimal]
     valid_until: Optional[date]
+    delivery_terms: Optional[str]
+    payment_terms: Optional[str]
     raw_snapshot: Optional[dict[str, Any]]
     created_at: datetime
     updated_at: datetime

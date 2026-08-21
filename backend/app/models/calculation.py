@@ -44,6 +44,11 @@ class Calculation(Base):
     # Platnost nabídky - do kdy je cena garantovaná
     valid_until = Column(Date, nullable=True)
 
+    # Volný text - termín realizace a platební podmínky, zobrazují se
+    # na veřejné nabídce (např. "6-8 týdnů od objednávky", "Záloha 50 %...")
+    delivery_terms = Column(String(255), nullable=True)
+    payment_terms = Column(String(255), nullable=True)
+
     # Kompletní snapshot všech hodnot z Excel kalkulace (flexibilní, bez nutnosti
     # migrace při každé změně struktury Excelu)
     raw_snapshot = Column(JSONB, nullable=True)
