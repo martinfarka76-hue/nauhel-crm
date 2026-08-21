@@ -98,6 +98,22 @@ export default function PublicOfferPage() {
 
   const calc = offer.calculation;
 
+  function subtotalForCategory(category) {
+    if (!calc || !calc.items) return 0;
+    return calc.items
+      .filter((it) => it.category === category)
+      .reduce((sum, it) => sum + Number(it.quantity) * Number(it.unit_price), 0);
+  }
+
+  const materialSubtotal = subtotalForCategory("Materiál");
+  const installationSubtotal = subtotalForCategory("Práce");
+  const materialDiscountAmount = calc
+    ? (materialSubtotal * Number(calc.discount_material_percent || 0)) / 100
+    : 0;
+  const installationDiscountAmount = calc
+    ? (installationSubtotal * Number(calc.discount_installation_percent || 0)) / 100
+    : 0;
+
   return (
     <div className="offer-shell">
       <div className="offer-header">
@@ -124,22 +140,26 @@ export default function PublicOfferPage() {
         <div className="offer-card-body">
           {calc ? (
             <>
-              {calc.product_line && (
-                <div className="offer-row">
-                  <span className="offer-row-label">Produktová řada</span>
-                  <span className="offer-row-value">{calc.product_line}</span>
-                </div>
-              )}
-              {calc.wood_species && (
-                <div className="offer-row">
-                  <span className="offer-row-label">Dřevina</span>
-                  <span className="offer-row-value">{calc.wood_species}</span>
-                </div>
-              )}
-              {calc.area_m2 && (
-                <div className="offer-row">
-                  <span className="offer-row-label">Plocha fasády</span>
-                  <span className="offer-row-value mono">{Number(calc.area_m2)} m²</span>
+              {(calc.product_line || calc.wood_species || calc.area_m2) && (
+                <div className="offer-stats">
+                  {calc.product_line && (
+                    <div className="offer-stat">
+                      <div className="offer-stat-label">Produktová řada</div>
+                      <div className="offer-stat-value">{calc.product_line}</div>
+                    </div>
+                  )}
+                  {calc.wood_species && (
+                    <div className="offer-stat">
+                      <div className="offer-stat-label">Dřevina</div>
+                      <div className="offer-stat-value">{calc.wood_species}</div>
+                    </div>
+                  )}
+                  {calc.area_m2 && (
+                    <div className="offer-stat">
+                      <div className="offer-stat-label">Plocha fasády</div>
+                      <div className="offer-stat-value mono">{Number(calc.area_m2)} m²</div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -178,10 +198,16 @@ export default function PublicOfferPage() {
               {(Number(calc.discount_material_percent) > 0 || Number(calc.discount_installation_percent) > 0) && (
                 <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 8 }}>
                   {Number(calc.discount_material_percent) > 0 && (
-                    <div>Sleva na materiál: {Number(calc.discount_material_percent)} %</div>
+                    <div>
+                      Sleva na materiál: {Number(calc.discount_material_percent)} %
+                      {" "}(−{formatMoney(materialDiscountAmount)})
+                    </div>
                   )}
                   {Number(calc.discount_installation_percent) > 0 && (
-                    <div>Sleva na montáž: {Number(calc.discount_installation_percent)} %</div>
+                    <div>
+                      Sleva na montáž: {Number(calc.discount_installation_percent)} %
+                      {" "}(−{formatMoney(installationDiscountAmount)})
+                    </div>
                   )}
                 </div>
               )}

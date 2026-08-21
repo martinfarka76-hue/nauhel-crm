@@ -19,7 +19,8 @@ const TRANSITION_EXPLANATIONS = {
     "že kalkulace obsahuje správné položky a ceny.",
   Objednávka:
     'Přesunout do stavu "Objednávka"? Tímto potvrzuješ, že zákazník nabídku přijal. ' +
-    "Zaznamená se skutečné datum uzavření. Další krok (Zálohová faktura) proběhne " +
+    "Zaznamená se skutečné datum uzavření a automaticky se vytvoří potvrzení objednávky " +
+    "(dokument s vlastním veřejným odkazem). Další krok (Zálohová faktura) proběhne " +
     "automaticky po elektronickém potvrzení objednávky zákazníkem.",
   Vyrobeno:
     'Přesunout do stavu "Vyrobeno"? Vyžaduje zaplacenou zálohu (checkbox "Záloha ' +
@@ -303,7 +304,7 @@ export default function DealDetailPage() {
     return `surcharge_${slug}_per_m2`;
   }
 
-  function handleApplyWoodSpecies(calcId, speciesId, productLine) {
+  function handleApplyWoodSpecies(calcId, speciesId, productLine, areaM2) {
     const species = woodSpeciesList.find((s) => s.id === speciesId);
     if (!species) return;
     const marginMaterial = pricingParams.margin_material ?? 0;
@@ -316,6 +317,7 @@ export default function DealDetailPage() {
       category: "Materiál",
       name: species.name,
       unit: "m²",
+      quantity: areaM2 ? String(Number(areaM2)) : getItemForm(calcId).quantity,
       unit_price: String(suggestedPrice),
     });
   }
@@ -358,7 +360,7 @@ export default function DealDetailPage() {
     if (newCategory === "Materiál") {
       const defaultSpecies = woodSpeciesList.find((s) => s.name === DEFAULT_WOOD_SPECIES_NAME);
       if (defaultSpecies) {
-        handleApplyWoodSpecies(calcId, defaultSpecies.id, calc.product_line);
+        handleApplyWoodSpecies(calcId, defaultSpecies.id, calc.product_line, calc.area_m2);
         return;
       }
     }
@@ -1074,25 +1076,34 @@ export default function DealDetailPage() {
                     )}
 
                     {form.category === "Materiál" && woodSpeciesList.length > 0 && (
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, color: "var(--ink-600)" }}>Předvyplnit z dřeviny:</span>
-                        <select
-                          onChange={(e) => {
-                            if (e.target.value) handleApplyWoodSpecies(c.id, e.target.value, c.product_line);
-                            e.target.value = "";
-                          }}
-                          style={{ fontSize: 12.5, padding: "3px 6px" }}
-                          defaultValue=""
-                        >
-                          <option value="" disabled>
-                            — vyber dřevinu —
-                          </option>
-                          {woodSpeciesList.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
+                      <div
+                        style={{
+                          background: "var(--paper-50)",
+                          border: "1px solid var(--paper-200)",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          marginBottom: 10,
+                        }}
+                      >
+                        <div className="field" style={{ marginBottom: 0 }}>
+                          <label style={{ color: "var(--ember-600)" }}>🪵 Předvyplnit z dřeviny</label>
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) handleApplyWoodSpecies(c.id, e.target.value, c.product_line, c.area_m2);
+                              e.target.value = "";
+                            }}
+                            defaultValue=""
+                          >
+                            <option value="" disabled>
+                              — vyber dřevinu —
                             </option>
-                          ))}
-                        </select>
+                            {woodSpeciesList.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     )}
                     {form.category === "Doprava" && (
@@ -1242,7 +1253,7 @@ export default function DealDetailPage() {
                 </div>
                 <div style={{ color: "var(--ink-600)", marginBottom: 6 }}>Vytvořeno: {formatDate(d.created_at)}</div>
 
-                {d.document_type === "Nabídka" && (
+                {(d.document_type === "Nabídka" || d.document_type === "Objednávka") && (
                   <>
                     <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
                       <button

@@ -95,6 +95,40 @@ body {
   border-bottom: none;
 }
 
+.offer-stats {
+  display: flex;
+  gap: 0;
+  background: var(--paper-50);
+  border: 1px solid var(--paper-200);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.offer-stat {
+  flex: 1;
+  padding: 14px 16px;
+  border-right: 1px solid var(--paper-200);
+}
+
+.offer-stat:last-child {
+  border-right: none;
+}
+
+.offer-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-400);
+  margin-bottom: 4px;
+}
+
+.offer-stat-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--char-950);
+}
+
 .offer-row-label {
   font-size: 13.5px;
   color: var(--ink-600);
