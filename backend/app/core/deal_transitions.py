@@ -88,9 +88,24 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
         db.add(document)
 
     # Nabídka -> Objednávka: zaznamenej skutečné datum uzavření (přestává být
-    # jen odhad zadaný uživatelem, "zamkne se" na dnešní datum)
+    # jen odhad zadaný uživatelem, "zamkne se" na dnešní datum). Vytváří
+    # potvrzení objednávky (Document typu Objednávka), navázané na stejnou
+    # aktivní kalkulaci jako naposledy vygenerovaná Nabídka.
     if to_status == DealStatus.OBJEDNAVKA:
         deal.expected_close_date = date.today()
+        active_calc = (
+            db.query(Calculation)
+            .filter(Calculation.deal_id == deal.id, Calculation.is_active.is_(True))
+            .first()
+        )
+        version = _next_document_version(db, deal.id, DocumentType.OBJEDNAVKA)
+        document = Document(
+            deal_id=deal.id,
+            calculation_id=active_calc.id if active_calc else None,
+            document_type=DocumentType.OBJEDNAVKA,
+            version=version,
+        )
+        db.add(document)
 
     # Zálohová faktura -> Vyrobeno: vyžaduje zaplacenou zálohu, vytváří Dodací list
     if to_status == DealStatus.VYROBENO:
