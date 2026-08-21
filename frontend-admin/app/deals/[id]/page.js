@@ -8,6 +8,7 @@ import { STATUS_COLORS, NEXT_MANUAL_STATUS } from "@/lib/constants";
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
 const CATEGORIES = ["Materiál", "Práce", "Doprava", "Ostatní"];
+const PRODUCT_LINES = ["Atacama", "Mirage", "Ocaso"];
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -35,6 +36,7 @@ function money(value) {
 }
 
 const emptyItemForm = { category: "Materiál", name: "", unit: "", quantity: "", unit_price: "" };
+const DEFAULT_WOOD_SPECIES_NAME = 'Modřín Evropský "Z" 20x145, délka 4000mm';
 
 export default function DealDetailPage() {
   const { id } = useParams();
@@ -42,6 +44,8 @@ export default function DealDetailPage() {
   const [company, setCompany] = useState(null);
   const [calculations, setCalculations] = useState([]);
   const [calcItems, setCalcItems] = useState({}); // { [calcId]: [items] }
+  const [woodSpeciesList, setWoodSpeciesList] = useState([]);
+  const [pricingParams, setPricingParams] = useState({}); // { [key]: value }
   const [documents, setDocuments] = useState([]);
   const [documentViews, setDocumentViews] = useState({});
   const [expandedDoc, setExpandedDoc] = useState(null);
@@ -94,6 +98,19 @@ export default function DealDetailPage() {
   }
 
   useEffect(loadAll, [id]);
+
+  useEffect(() => {
+    Promise.all([api.get("/wood-species"), api.get("/pricing-parameters")])
+      .then(([speciesData, paramsData]) => {
+        setWoodSpeciesList(speciesData);
+        const map = {};
+        paramsData.forEach((p) => (map[p.key] = Number(p.value)));
+        setPricingParams(map);
+      })
+      .catch(() => {
+        // Nekritické - formulář položky bude fungovat i bez předvyplňování
+      });
+  }, []);
 
   function handleCopyLink(accessToken, docId) {
     const url = `${PUBLIC_URL}/n/${accessToken}`;
@@ -215,6 +232,86 @@ export default function DealDetailPage() {
 
   function setItemForm(calcId, patch) {
     setItemForms((prev) => ({ ...prev, [calcId]: { ...getItemForm(calcId), ...patch } }));
+  }
+
+  function surchargeKeyForProductLine(productLine) {
+    if (!productLine) return null;
+    const slug = productLine.toLowerCase();
+    return `surcharge_${slug}_per_m2`;
+  }
+
+  function handleApplyWoodSpecies(calcId, speciesId, productLine) {
+    const species = woodSpeciesList.find((s) => s.id === speciesId);
+    if (!species) return;
+    const marginMaterial = pricingParams.margin_material ?? 0;
+    const surchargeKey = surchargeKeyForProductLine(productLine);
+    const surcharge = surchargeKey ? pricingParams[surchargeKey] ?? 0 : 0;
+    const basePrice = Number(species.purchase_price_per_m2) || 0;
+    const suggestedPrice = Math.round((basePrice * (1 + marginMaterial) + surcharge) * 100) / 100;
+
+    setItemForm(calcId, {
+      category: "Materiál",
+      name: species.name,
+      unit: "m²",
+      unit_price: String(suggestedPrice),
+    });
+  }
+
+  function handleCalculateTransport(calcId, distanceKm) {
+    if (!distanceKm) {
+      setError("Kalkulace nemá vyplněnou vzdálenost (km) - doplň ji v hlavičce kalkulace.");
+      return;
+    }
+    const fuel = pricingParams.fuel_price_per_km ?? 0;
+    const driver = pricingParams.driver_price_per_km ?? 0;
+    const fixedCost = pricingParams.transport_fixed_to_customer ?? 0;
+    const distance = Number(distanceKm);
+    const total = distance * (fuel + driver) + fixedCost;
+    // Jednotka "km" - jednotková cena je celková cena rozpočítaná na km (včetně
+    // fixního nákladu), ať součet (množství × jedn. cena) sedí na celkovou částku.
+    const unitPrice = distance > 0 ? Math.round((total / distance) * 100) / 100 : 0;
+
+    setItemForm(calcId, {
+      category: "Doprava",
+      name: "Doprava k zákazníkovi",
+      unit: "km",
+      quantity: String(distance),
+      unit_price: String(unitPrice),
+    });
+  }
+
+  function handleApplyInstallation(calcId, areaM2) {
+    const price = pricingParams.installation_price_per_m2 ?? 0;
+    setItemForm(calcId, {
+      category: "Práce",
+      name: "Montáž",
+      unit: "m²",
+      quantity: areaM2 ? String(Number(areaM2)) : getItemForm(calcId).quantity,
+      unit_price: String(price),
+    });
+  }
+
+  function handleCategoryChange(calcId, newCategory, calc) {
+    if (newCategory === "Materiál") {
+      const defaultSpecies = woodSpeciesList.find((s) => s.name === DEFAULT_WOOD_SPECIES_NAME);
+      if (defaultSpecies) {
+        handleApplyWoodSpecies(calcId, defaultSpecies.id, calc.product_line);
+        return;
+      }
+    }
+    if (newCategory === "Práce") {
+      handleApplyInstallation(calcId, calc.area_m2);
+      return;
+    }
+    if (newCategory === "Doprava") {
+      if (calc.distance_km) {
+        handleCalculateTransport(calcId, calc.distance_km);
+      } else {
+        setItemForm(calcId, { category: "Doprava", name: "Doprava k zákazníkovi", unit: "km" });
+      }
+      return;
+    }
+    setItemForm(calcId, { category: newCategory });
   }
 
   async function handleAddItem(calcId) {
@@ -463,11 +560,17 @@ export default function DealDetailPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="field">
                 <label>Produktová řada</label>
-                <input
+                <select
                   value={calcForm.product_line}
                   onChange={(e) => setCalcForm({ ...calcForm, product_line: e.target.value })}
-                  placeholder="např. Atacama"
-                />
+                >
+                  <option value="">— vyber —</option>
+                  {PRODUCT_LINES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="field">
                 <label>Dřevina</label>
@@ -712,6 +815,40 @@ export default function DealDetailPage() {
                       </table>
                     )}
 
+                    {form.category === "Materiál" && woodSpeciesList.length > 0 && (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, color: "var(--ink-600)" }}>Předvyplnit z dřeviny:</span>
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) handleApplyWoodSpecies(c.id, e.target.value, c.product_line);
+                            e.target.value = "";
+                          }}
+                          style={{ fontSize: 12.5, padding: "3px 6px" }}
+                          defaultValue=""
+                        >
+                          <option value="" disabled>
+                            — vyber dřevinu —
+                          </option>
+                          {woodSpeciesList.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {form.category === "Doprava" && (
+                      <div style={{ marginBottom: 8 }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: "4px 10px", fontSize: 12.5 }}
+                          onClick={() => handleCalculateTransport(c.id, c.distance_km)}
+                        >
+                          Vypočítat dle vzdálenosti ({c.distance_km ? `${Number(c.distance_km)} km` : "vzdálenost nezadána"})
+                        </button>
+                      </div>
+                    )}
+
                     <div
                       style={{
                         display: "grid",
@@ -723,7 +860,10 @@ export default function DealDetailPage() {
                     >
                       <div className="field" style={{ marginBottom: 0 }}>
                         <label>Kategorie</label>
-                        <select value={form.category} onChange={(e) => setItemForm(c.id, { category: e.target.value })}>
+                        <select
+                          value={form.category}
+                          onChange={(e) => handleCategoryChange(c.id, e.target.value, c)}
+                        >
                           {CATEGORIES.map((cat) => (
                             <option key={cat} value={cat}>
                               {cat}

@@ -40,12 +40,26 @@ export default function ProtectedShell({ children }) {
     { href: "/", label: "Přehled" },
     { href: "/companies", label: "Firmy" },
     { href: "/contacts", label: "Kontakty" },
+    { href: "/settings", label: "Nastavení" },
   ];
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="sidebar-brand">NAUHEL CRM</div>
+        <div className="sidebar-brand" style={{ marginBottom: 4 }}>NAUHEL CRM</div>
+        <div
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 10,
+            letterSpacing: "0.05em",
+            color: "var(--ink-400)",
+            paddingLeft: 10,
+            marginBottom: 26,
+            whiteSpace: "nowrap",
+          }}
+        >
+          100%FIRE 100% WOOD
+        </div>
         {links.map((link) => (
           <a
             key={link.href}

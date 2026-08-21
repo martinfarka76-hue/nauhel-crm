@@ -1,7 +1,7 @@
 :root {
-  --char-950: #17140f;
-  --char-900: #1f1b15;
-  --char-800: #2a251d;
+  --char-950: #0e0c09;
+  --char-900: #1a1712;
+  --char-800: #251f18;
   --ember-500: #b5652d;
   --ember-600: #9c5424;
   --paper-50: #faf8f5;
@@ -57,11 +57,11 @@ textarea {
 }
 
 .sidebar {
-  width: 220px;
+  width: 180px;
   flex-shrink: 0;
   background: var(--char-950);
   color: var(--paper-100);
-  padding: 24px 16px;
+  padding: 22px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -81,7 +81,9 @@ textarea {
   padding: 9px 10px;
   border-radius: 6px;
   color: var(--paper-200);
-  font-size: 14px;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   transition: background 0.12s ease;
 }
 

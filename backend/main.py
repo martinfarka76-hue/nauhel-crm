@@ -7,9 +7,12 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
 from app import models  # noqa: F401 - zajišťuje registraci modelů
-from app.routers import company, contact, deal, auth, calculation, document, webhooks, ares, stage_config
+from app.routers import (
+    company, contact, deal, auth, calculation, document, webhooks, ares,
+    stage_config, wood_species, pricing_parameter,
+)
 from app.core.scheduler import start_scheduler
-from app.core.seed_data import seed_stage_config
+from app.core.seed_data import seed_stage_config, seed_pricing_parameters, seed_wood_species
 from app.database import SessionLocal
 
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +23,8 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         seed_stage_config(db)
+        seed_pricing_parameters(db)
+        seed_wood_species(db)
     finally:
         db.close()
     scheduler = start_scheduler()
@@ -40,13 +45,6 @@ app.add_middleware(
 
 @app.exception_handler(IntegrityError)
 async def integrity_error_handler(request: Request, exc: IntegrityError):
-    """
-    Zachytí chyby databázové integrity (neplatný cizí klíč, porušené
-    omezení sloupce apod.) a vrátí srozumitelnou zprávu místo obecné
-    500 chyby. Typicky nastane při: odkazu na neexistující firmu/kontakt,
-    hodnotě mimo povolený rozsah (např. špatný formát vat_rate), nebo
-    mazání záznamu, na který se ještě něco odkazuje.
-    """
     return JSONResponse(
         status_code=422,
         content={
@@ -57,6 +55,7 @@ async def integrity_error_handler(request: Request, exc: IntegrityError):
         },
     )
 
+
 app.include_router(auth.router)
 app.include_router(company.router)
 app.include_router(contact.router)
@@ -66,6 +65,8 @@ app.include_router(document.router)
 app.include_router(webhooks.router)
 app.include_router(ares.router)
 app.include_router(stage_config.router)
+app.include_router(wood_species.router)
+app.include_router(pricing_parameter.router)
 
 
 @app.get("/")

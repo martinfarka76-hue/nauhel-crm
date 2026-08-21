@@ -5,6 +5,8 @@ import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 import { DEAL_STATUSES, STATUS_COLORS } from "@/lib/constants";
 
+const PAGE_SIZE = 50;
+
 function formatPrice(price) {
   if (price === null || price === undefined) return "—";
   const n = Number(price);
@@ -15,6 +17,14 @@ function formatDateShort(dateStr) {
   if (!dateStr) return null;
   const [y, m, d] = dateStr.split("-");
   return `${d}.${m}.`;
+}
+
+function csvEscape(value) {
+  const str = String(value ?? "");
+  if (str.includes(";") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
 }
 
 export default function DashboardPage() {
@@ -28,6 +38,11 @@ export default function DashboardPage() {
   const [dateTo, setDateTo] = useState("");
   const [invoiceDateFrom, setInvoiceDateFrom] = useState("");
   const [invoiceDateTo, setInvoiceDateTo] = useState("");
+
+  const [viewMode, setViewMode] = useState("kanban"); // "kanban" | "list"
+  const [sortKey, setSortKey] = useState("created_at");
+  const [sortDir, setSortDir] = useState("desc"); // "asc" | "desc"
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     Promise.all([api.get("/deals"), api.get("/companies"), api.get("/stage-config")])
@@ -68,8 +83,12 @@ export default function DashboardPage() {
     if (dealsByStatus[d.status]) dealsByStatus[d.status].push(d);
   });
 
+  function probabilityFor(status) {
+    return (stageProbabilities[status] ?? 0) / 100;
+  }
+
   function columnTotals(statusDeals, status) {
-    const probability = (stageProbabilities[status] ?? 0) / 100;
+    const probability = probabilityFor(status);
     let total = 0;
     let weighted = 0;
     statusDeals.forEach((d) => {
@@ -80,10 +99,119 @@ export default function DashboardPage() {
     return { total, weighted };
   }
 
+  // Celkové součty přes všechny filtrované případy (napříč stavy) - pro seznam
+  const overallTotals = filteredDeals.reduce(
+    (acc, d) => {
+      const price = Number(d.price) || 0;
+      acc.total += price;
+      acc.weighted += price * probabilityFor(d.status);
+      return acc;
+    },
+    { total: 0, weighted: 0 }
+  );
+
+  function handleSort(key) {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
+
+  function sortValue(deal, key) {
+    if (key === "company") return companies[deal.company_id] || "";
+    if (key === "price") return Number(deal.price) || 0;
+    return deal[key] || "";
+  }
+
+  const sortedDeals = [...filteredDeals].sort((a, b) => {
+    const va = sortValue(a, sortKey);
+    const vb = sortValue(b, sortKey);
+    if (va < vb) return sortDir === "asc" ? -1 : 1;
+    if (va > vb) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sortedDeals.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedDeals = sortedDeals.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  function SortHeader({ label, sortKeyName }) {
+    const active = sortKey === sortKeyName;
+    return (
+      <th
+        onClick={() => handleSort(sortKeyName)}
+        style={{ cursor: "pointer", userSelect: "none", color: active ? "var(--ink-900)" : undefined }}
+      >
+        {label} {active && (sortDir === "asc" ? "↑" : "↓")}
+      </th>
+    );
+  }
+
+  function handleExportCsv() {
+    const header = ["Název", "Firma", "Stav", "Cena", "Uzavření", "Fakturace"];
+    const rows = sortedDeals.map((d) => [
+      d.name,
+      companies[d.company_id] || "",
+      d.status,
+      d.price ?? "",
+      d.expected_close_date || "",
+      d.expected_invoice_date || "",
+    ]);
+    const csvLines = [header, ...rows].map((row) => row.map(csvEscape).join(";"));
+    // BOM na začátku, ať Excel správně rozpozná UTF-8 (jinak by zobrazoval diakritiku špatně)
+    const csvContent = "\uFEFF" + csvLines.join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `obchodni-pripady-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <ProtectedShell>
-      <h1 className="page-title">Přehled obchodních případů</h1>
-      <p className="page-subtitle">Pipeline podle aktuálního stavu</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", maxWidth: 720 }}>
+        <div>
+          <h1 className="page-title">Přehled obchodních případů</h1>
+          <p className="page-subtitle">Pipeline podle aktuálního stavu</p>
+        </div>
+        <div style={{ display: "flex", gap: 2, background: "var(--paper-200)", borderRadius: 8, padding: 2 }}>
+          <button
+            onClick={() => setViewMode("kanban")}
+            style={{
+              border: "none",
+              borderRadius: 6,
+              padding: "6px 14px",
+              fontSize: 13,
+              cursor: "pointer",
+              background: viewMode === "kanban" ? "#fff" : "transparent",
+              fontWeight: viewMode === "kanban" ? 600 : 400,
+              color: viewMode === "kanban" ? "var(--ink-900)" : "var(--ink-600)",
+            }}
+          >
+            Mřížka
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            style={{
+              border: "none",
+              borderRadius: 6,
+              padding: "6px 14px",
+              fontSize: 13,
+              cursor: "pointer",
+              background: viewMode === "list" ? "#fff" : "transparent",
+              fontWeight: viewMode === "list" ? 600 : 400,
+              color: viewMode === "list" ? "var(--ink-900)" : "var(--ink-600)",
+            }}
+          >
+            Seznam
+          </button>
+        </div>
+      </div>
 
       <div
         style={{
@@ -100,7 +228,10 @@ export default function DashboardPage() {
         <input
           type="date"
           value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
+          onChange={(e) => {
+            setDateFrom(e.target.value);
+            setPage(1);
+          }}
           style={{
             border: "1px solid var(--paper-200)",
             borderRadius: 5,
@@ -113,7 +244,10 @@ export default function DashboardPage() {
         <input
           type="date"
           value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
+          onChange={(e) => {
+            setDateTo(e.target.value);
+            setPage(1);
+          }}
           style={{
             border: "1px solid var(--paper-200)",
             borderRadius: 5,
@@ -129,7 +263,10 @@ export default function DashboardPage() {
         <input
           type="date"
           value={invoiceDateFrom}
-          onChange={(e) => setInvoiceDateFrom(e.target.value)}
+          onChange={(e) => {
+            setInvoiceDateFrom(e.target.value);
+            setPage(1);
+          }}
           style={{
             border: "1px solid var(--paper-200)",
             borderRadius: 5,
@@ -142,7 +279,10 @@ export default function DashboardPage() {
         <input
           type="date"
           value={invoiceDateTo}
-          onChange={(e) => setInvoiceDateTo(e.target.value)}
+          onChange={(e) => {
+            setInvoiceDateTo(e.target.value);
+            setPage(1);
+          }}
           style={{
             border: "1px solid var(--paper-200)",
             borderRadius: 5,
@@ -159,6 +299,7 @@ export default function DashboardPage() {
               setDateTo("");
               setInvoiceDateFrom("");
               setInvoiceDateTo("");
+              setPage(1);
             }}
             style={{
               background: "none",
@@ -173,12 +314,30 @@ export default function DashboardPage() {
             Zrušit filtr
           </button>
         )}
+
+        {viewMode === "list" && (
+          <button
+            onClick={handleExportCsv}
+            style={{
+              marginLeft: "auto",
+              background: "none",
+              border: "1px solid var(--line)",
+              borderRadius: 6,
+              padding: "4px 10px",
+              fontSize: 12.5,
+              color: "var(--ink-600)",
+              cursor: "pointer",
+            }}
+          >
+            Export do Excelu (CSV)
+          </button>
+        )}
       </div>
 
       {error && <div className="error-banner">{error}</div>}
       {loading && <div className="empty-state">Načítám…</div>}
 
-      {!loading && (
+      {!loading && viewMode === "kanban" && (
         <div className="kanban">
           {DEAL_STATUSES.map((status) => {
             const statusDeals = dealsByStatus[status];
@@ -236,6 +395,86 @@ export default function DashboardPage() {
             );
           })}
         </div>
+      )}
+
+      {!loading && viewMode === "list" && (
+        <>
+          {sortedDeals.length === 0 ? (
+            <div className="empty-state">Žádné obchodní případy neodpovídají filtru.</div>
+          ) : (
+            <>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <SortHeader label="Název" sortKeyName="name" />
+                    <SortHeader label="Firma" sortKeyName="company" />
+                    <SortHeader label="Stav" sortKeyName="status" />
+                    <SortHeader label="Cena" sortKeyName="price" />
+                    <SortHeader label="Uzavření" sortKeyName="expected_close_date" />
+                    <SortHeader label="Fakturace" sortKeyName="expected_invoice_date" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedDeals.map((deal) => (
+                    <tr key={deal.id} className="clickable" onClick={() => (window.location.href = `/deals/${deal.id}`)}>
+                      <td style={{ fontWeight: 600 }}>{deal.name}</td>
+                      <td>{companies[deal.company_id] || "—"}</td>
+                      <td>
+                        <span className="badge" style={{ background: STATUS_COLORS[deal.status] }}>
+                          {deal.status}
+                        </span>
+                      </td>
+                      <td className="mono">{formatPrice(deal.price)}</td>
+                      <td className="mono">{formatDateShort(deal.expected_close_date) || "—"}</td>
+                      <td className="mono">{formatDateShort(deal.expected_invoice_date) || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: 16,
+                  paddingTop: 12,
+                  borderTop: "1px solid var(--paper-200)",
+                }}
+              >
+                <div style={{ fontSize: 13, color: "var(--ink-600)" }}>
+                  Celkem ({sortedDeals.length}): <strong className="mono">{formatPrice(overallTotals.total)}</strong>
+                  {"  ·  "}
+                  Vážený objem: <strong className="mono">{formatPrice(overallTotals.weighted)}</strong>
+                </div>
+
+                {totalPages > 1 && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: "4px 10px", fontSize: 12.5 }}
+                      disabled={currentPage <= 1}
+                      onClick={() => setPage(currentPage - 1)}
+                    >
+                      Předchozí
+                    </button>
+                    <span style={{ color: "var(--ink-600)" }}>
+                      Strana {currentPage} z {totalPages}
+                    </span>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: "4px 10px", fontSize: 12.5 }}
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setPage(currentPage + 1)}
+                    >
+                      Další
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </>
       )}
     </ProtectedShell>
   );
