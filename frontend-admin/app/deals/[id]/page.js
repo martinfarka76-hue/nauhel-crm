@@ -86,9 +86,10 @@ export default function DealDetailPage() {
     vat_rate: "0.21",
     discount_material_percent: "0",
     discount_installation_percent: "0",
+    deposit_percent: "50",
     valid_until: "",
     delivery_terms: "6-8 týdnů od objednávky",
-    payment_terms: "Zálohová faktura 50 %, finální faktura se splatností dnem dodání",
+    payment_terms: "Zálohová faktura 50 % vystavena po potvrzení objednávky, finální faktura se splatností dnem dodání",
   });
 
   const [itemForms, setItemForms] = useState({}); // { [calcId]: itemForm }
@@ -214,11 +215,15 @@ export default function DealDetailPage() {
     }
     const existingOffers = documents.filter((d) => d.document_type === "Nabídka");
     const nextVersion = existingOffers.length + 1;
+    const willAutoTransition = deal.status === "Lead" || deal.status === "Kvalifikovaný lead";
+    const statusNote = willAutoTransition
+      ? ` Případ zároveň automaticky přejde do stavu "Nabídka" (aktuálně je "${deal.status}").`
+      : "";
     if (
       !window.confirm(
         `Vytvořit novou verzi nabídky (v${nextVersion}) navázanou na aktuálně aktivní kalkulaci ` +
           `("${activeCalc.product_line || "—"}")? Starší verze zůstanou dostupné se svými odkazy, ` +
-          `nová bude označena jako Aktuální.`
+          `nová bude označena jako Aktuální.${statusNote}`
       )
     )
       return;
@@ -230,6 +235,9 @@ export default function DealDetailPage() {
         version: nextVersion,
       });
       loadAll();
+      if (willAutoTransition) {
+        alert('Nabídka byla vytvořena a případ byl automaticky přesunut do stavu "Nabídka".');
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -264,6 +272,7 @@ export default function DealDetailPage() {
         vat_rate: Number(calcForm.vat_rate) || 0,
         discount_material_percent: Number(calcForm.discount_material_percent) || 0,
         discount_installation_percent: Number(calcForm.discount_installation_percent) || 0,
+        deposit_percent: Number(calcForm.deposit_percent) || 50,
         valid_until: calcForm.valid_until || null,
         delivery_terms: calcForm.delivery_terms || null,
         payment_terms: calcForm.payment_terms || null,
@@ -277,9 +286,10 @@ export default function DealDetailPage() {
         vat_rate: "0.21",
         discount_material_percent: "0",
         discount_installation_percent: "0",
+        deposit_percent: "50",
         valid_until: "",
         delivery_terms: "6-8 týdnů od objednávky",
-        payment_terms: "Zálohová faktura 50 %, finální faktura se splatností dnem dodání",
+        payment_terms: "Zálohová faktura 50 % vystavena po potvrzení objednávky, finální faktura se splatností dnem dodání",
       });
       setShowCalcForm(false);
       loadAll();
@@ -427,6 +437,7 @@ export default function DealDetailPage() {
       discount_material_percent: c.discount_material_percent != null ? String(c.discount_material_percent) : "0",
       discount_installation_percent:
         c.discount_installation_percent != null ? String(c.discount_installation_percent) : "0",
+      deposit_percent: c.deposit_percent != null ? String(c.deposit_percent) : "50",
       valid_until: c.valid_until || "",
       delivery_terms: c.delivery_terms || "",
       payment_terms: c.payment_terms || "",
@@ -444,6 +455,7 @@ export default function DealDetailPage() {
         vat_rate: Number(editCalcForm.vat_rate) || 0,
         discount_material_percent: Number(editCalcForm.discount_material_percent) || 0,
         discount_installation_percent: Number(editCalcForm.discount_installation_percent) || 0,
+        deposit_percent: Number(editCalcForm.deposit_percent) || 50,
         valid_until: editCalcForm.valid_until || null,
         delivery_terms: editCalcForm.delivery_terms || null,
         payment_terms: editCalcForm.payment_terms || null,
@@ -713,7 +725,7 @@ export default function DealDetailPage() {
                 </select>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               <div className="field">
                 <label>Sleva na materiál (%)</label>
                 <input
@@ -730,6 +742,15 @@ export default function DealDetailPage() {
                   step="0.1"
                   value={calcForm.discount_installation_percent}
                   onChange={(e) => setCalcForm({ ...calcForm, discount_installation_percent: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>Výše zálohy (%)</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={calcForm.deposit_percent}
+                  onChange={(e) => setCalcForm({ ...calcForm, deposit_percent: e.target.value })}
                 />
               </div>
             </div>
@@ -891,7 +912,7 @@ export default function DealDetailPage() {
                             </select>
                           </div>
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                           <div className="field">
                             <label>Sleva na materiál (%)</label>
                             <input
@@ -912,6 +933,15 @@ export default function DealDetailPage() {
                               onChange={(e) =>
                                 setEditCalcForm({ ...editCalcForm, discount_installation_percent: e.target.value })
                               }
+                            />
+                          </div>
+                          <div className="field">
+                            <label>Výše zálohy (%)</label>
+                            <input
+                              type="number"
+                              step="1"
+                              value={editCalcForm.deposit_percent}
+                              onChange={(e) => setEditCalcForm({ ...editCalcForm, deposit_percent: e.target.value })}
                             />
                           </div>
                         </div>
@@ -1250,8 +1280,31 @@ export default function DealDetailPage() {
                       Aktuální
                     </span>
                   )}
+                  {d.document_type === "Objednávka" && (
+                    <span
+                      className="badge"
+                      style={{
+                        background: d.confirmed_at ? "var(--success)" : "#c1863f",
+                        marginLeft: 6,
+                        fontSize: 10.5,
+                      }}
+                    >
+                      {d.confirmed_at ? "Potvrzená" : "Nepotvrzená"}
+                    </span>
+                  )}
                 </div>
+                {d.document_type === "Objednávka" && d.confirmed_at && (
+                  <div style={{ fontSize: 11.5, color: "var(--ink-600)", marginTop: 2 }}>
+                    Potvrdil(a) {d.confirmed_by_name} dne {formatDate(d.confirmed_at)}
+                  </div>
+                )}
                 <div style={{ color: "var(--ink-600)", marginBottom: 6 }}>Vytvořeno: {formatDate(d.created_at)}</div>
+                {(d.document_type === "Zálohová faktura" || d.document_type === "Finální faktura") &&
+                  d.amount != null && (
+                    <div style={{ marginBottom: 6 }}>
+                      Částka: <strong className="mono">{money(d.amount)}</strong>
+                    </div>
+                  )}
 
                 {(d.document_type === "Nabídka" || d.document_type === "Objednávka") && (
                   <>

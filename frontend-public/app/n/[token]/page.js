@@ -28,6 +28,9 @@ export default function PublicOfferPage() {
   const { token } = useParams();
   const [state, setState] = useState("loading"); // loading | ready | not_found | error
   const [offer, setOffer] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState("");
+  const [confirmName, setConfirmName] = useState("");
   const viewIdRef = useRef(null);
   const startTimeRef = useRef(null);
 
@@ -114,6 +117,30 @@ export default function PublicOfferPage() {
     ? (installationSubtotal * Number(calc.discount_installation_percent || 0)) / 100
     : 0;
 
+  async function handleConfirmOrder() {
+    if (!confirmName.trim()) {
+      setConfirmError("Prosím vyplňte své celé jméno.");
+      return;
+    }
+    setConfirming(true);
+    setConfirmError("");
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
+      const res = await fetch(`${API_URL}/public/documents/${token}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmed_by_name: confirmName.trim() }),
+      });
+      if (!res.ok) throw new Error("Potvrzení se nezdařilo, zkuste to prosím znovu.");
+      const data = await res.json();
+      setOffer((prev) => ({ ...prev, confirmed_at: data.confirmed_at, confirmed_by_name: data.confirmed_by_name }));
+    } catch (err) {
+      setConfirmError(err.message);
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   return (
     <div className="offer-shell">
       <div className="offer-header">
@@ -134,6 +161,78 @@ export default function PublicOfferPage() {
           </div>
         )}
       </div>
+
+      {offer.document_type === "Objednávka" && (
+        <div
+          style={{
+            border: offer.confirmed_at ? "2px solid var(--success, #3d7a4f)" : "2px solid var(--ember-500)",
+            background: offer.confirmed_at ? "#f0f7f2" : "#fdf3ec",
+            borderRadius: 12,
+            padding: "22px 28px",
+            marginBottom: 20,
+            textAlign: "center",
+          }}
+        >
+          {offer.confirmed_at ? (
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: "var(--success, #3d7a4f)", marginBottom: 4 }}>
+                ✓ Objednávka potvrzena
+              </div>
+              <div style={{ fontSize: 13, color: "var(--ink-600)" }}>
+                Potvrdil(a) {offer.confirmed_by_name} dne {formatDate(offer.confirmed_at)}. Děkujeme, brzy
+                se vám ozveme s dalšími kroky.
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--ember-600, #9c5424)", marginBottom: 8 }}>
+                ⚠ Vyžaduje vaše potvrzení
+              </div>
+              <div style={{ fontSize: 13.5, color: "var(--ink-600)", marginBottom: 14 }}>
+                Vyplňte prosím své celé jméno a kliknutím na tlačítko níže elektronicky potvrďte
+                tuto objednávku.
+              </div>
+              <input
+                type="text"
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                placeholder="Celé jméno"
+                style={{
+                  width: "100%",
+                  maxWidth: 300,
+                  padding: "10px 14px",
+                  fontSize: 14.5,
+                  border: "1px solid var(--line)",
+                  borderRadius: 8,
+                  marginBottom: 14,
+                  textAlign: "center",
+                }}
+              />
+              <div>
+                <button
+                  onClick={handleConfirmOrder}
+                  disabled={confirming}
+                  style={{
+                    background: "var(--ember-500)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "13px 32px",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: confirming ? "default" : "pointer",
+                  }}
+                >
+                  {confirming ? "Potvrzuji…" : "Potvrdit objednávku"}
+                </button>
+              </div>
+              {confirmError && (
+                <div style={{ marginTop: 10, fontSize: 12.5, color: "#a13d3d" }}>{confirmError}</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <div className="offer-card">
         <div className="offer-card-band" />

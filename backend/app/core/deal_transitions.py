@@ -118,9 +118,35 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
         db.add(document)
 
     # Vyrobeno -> Fakturováno: zaznamenej skutečné datum fakturace, vytváří finální fakturu
+    # s částkou = celková cena aktivní kalkulace mínus již vyúčtovaná záloha
     if to_status == DealStatus.FAKTUROVANO:
         deal.expected_invoice_date = date.today()
-        document = Document(deal_id=deal.id, document_type=DocumentType.FINALNI_FAKTURA, version=1)
+
+        final_amount = None
+        active_calc = (
+            db.query(Calculation)
+            .filter(Calculation.deal_id == deal.id, Calculation.is_active.is_(True))
+            .first()
+        )
+        if active_calc and active_calc.price_with_vat is not None:
+            zalohova_faktura = (
+                db.query(Document)
+                .filter(Document.deal_id == deal.id, Document.document_type == DocumentType.ZALOHOVA_FAKTURA)
+                .order_by(Document.created_at.desc())
+                .first()
+            )
+            deposit_already_invoiced = (
+                zalohova_faktura.amount if zalohova_faktura and zalohova_faktura.amount else 0
+            )
+            final_amount = active_calc.price_with_vat - deposit_already_invoiced
+
+        document = Document(
+            deal_id=deal.id,
+            calculation_id=active_calc.id if active_calc else None,
+            document_type=DocumentType.FINALNI_FAKTURA,
+            version=1,
+            amount=final_amount,
+        )
         db.add(document)
 
     deal.status = to_status
@@ -131,9 +157,11 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
 
 def perform_esignature_confirmation(db: Session, deal: Deal) -> Deal:
     """
-    Automatický přechod Objednávka -> Zálohová faktura po potvrzení
-    e-signature webhookem. Záloha = 50 % ceny nabídky (výchozí, lze
-    později ručně upravit přes běžný PUT /deals/{id}).
+    Automatický přechod Objednávka -> Zálohová faktura po elektronickém
+    potvrzení objednávky zákazníkem (přes veřejnou stránku, nebo v
+    budoucnu přes externí e-signature nástroj). Částka zálohy se počítá
+    z aktivní kalkulace podle jejího nastaveného deposit_percent (výchozí
+    50 %, upravitelné v editaci hlavičky kalkulace).
     """
     if deal.status != DealStatus.OBJEDNAVKA:
         raise HTTPException(
@@ -142,7 +170,24 @@ def perform_esignature_confirmation(db: Session, deal: Deal) -> Deal:
             f"aktuální stav je '{deal.status.value}'.",
         )
 
-    document = Document(deal_id=deal.id, document_type=DocumentType.ZALOHOVA_FAKTURA, version=1)
+    active_calc = (
+        db.query(Calculation)
+        .filter(Calculation.deal_id == deal.id, Calculation.is_active.is_(True))
+        .first()
+    )
+
+    deposit_amount = None
+    if active_calc and active_calc.price_with_vat is not None:
+        deposit_percent = active_calc.deposit_percent or 50
+        deposit_amount = (active_calc.price_with_vat * deposit_percent) / 100
+
+    document = Document(
+        deal_id=deal.id,
+        calculation_id=active_calc.id if active_calc else None,
+        document_type=DocumentType.ZALOHOVA_FAKTURA,
+        version=1,
+        amount=deposit_amount,
+    )
     db.add(document)
 
     deal.status = DealStatus.ZALOHOVA_FAKTURA

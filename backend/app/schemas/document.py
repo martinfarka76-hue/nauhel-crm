@@ -27,6 +27,9 @@ class DocumentOut(BaseModel):
     version: int
     access_token: str
     email_sent_at: Optional[datetime]
+    confirmed_at: Optional[datetime]
+    confirmed_by_name: Optional[str] = None
+    amount: Optional[Decimal] = None
     created_at: datetime
     updated_at: datetime
 
@@ -68,12 +71,24 @@ class DocumentPublicOut(BaseModel):
     document_type: DocumentType
     version: int
     created_at: datetime
+    confirmed_at: Optional[datetime] = None
+    confirmed_by_name: Optional[str] = None
     company_name: str
     company_ico: Optional[str] = None
     company_dic: Optional[str] = None
     company_address: Optional[str] = None
     deal_name: str
     calculation: Optional[CalculationPublicOut] = None
+
+
+class DocumentConfirmRequest(BaseModel):
+    confirmed_by_name: str
+
+
+class DocumentConfirmResult(BaseModel):
+    confirmed: bool
+    confirmed_at: datetime
+    confirmed_by_name: str
 
 
 class DocumentViewCreateResult(BaseModel):

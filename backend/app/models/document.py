@@ -1,7 +1,7 @@
 import uuid
 import secrets
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, String, Integer, Numeric, DateTime, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -34,6 +34,14 @@ class Document(Base):
 
     email_sent_at = Column(DateTime, nullable=True)
     reminder_sent_at = Column(DateTime, nullable=True)
+    # Kdy zákazník elektronicky potvrdil (relevantní hlavně pro Objednávku -
+    # vlastní "domácí" náhrada e-signature, dokud není vybrán konkrétní nástroj)
+    confirmed_at = Column(DateTime, nullable=True)
+    confirmed_by_name = Column(String(255), nullable=True)
+
+    # Vyčíslená částka - relevantní hlavně pro Zálohová faktura (záloha
+    # dle deposit_percent kalkulace) a Finální faktura (zbytek ceny)
+    amount = Column(Numeric(12, 2), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

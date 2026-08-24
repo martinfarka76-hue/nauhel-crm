@@ -17,6 +17,7 @@ class CalculationCreate(BaseModel):
     vat_rate: Optional[Decimal] = None
     discount_material_percent: Decimal = Decimal("0")
     discount_installation_percent: Decimal = Decimal("0")
+    deposit_percent: Decimal = Decimal("50")
     valid_until: Optional[date] = None
     delivery_terms: Optional[str] = None
     payment_terms: Optional[str] = None
@@ -31,6 +32,7 @@ class CalculationUpdate(BaseModel):
     vat_rate: Optional[Decimal] = None
     discount_material_percent: Optional[Decimal] = None
     discount_installation_percent: Optional[Decimal] = None
+    deposit_percent: Optional[Decimal] = None
     valid_until: Optional[date] = None
     delivery_terms: Optional[str] = None
     payment_terms: Optional[str] = None
@@ -50,6 +52,7 @@ class CalculationOut(BaseModel):
     vat_rate: Optional[Decimal]
     discount_material_percent: Decimal
     discount_installation_percent: Decimal
+    deposit_percent: Decimal
     # Vypočtené - read only, viz calculation_totals.py
     price_without_vat: Optional[Decimal]
     vat_amount: Optional[Decimal]

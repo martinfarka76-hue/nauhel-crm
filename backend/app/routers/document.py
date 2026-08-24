@@ -1,17 +1,19 @@
 import uuid
+from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.deal_transitions import perform_esignature_confirmation
 from app.models.document import Document
 from app.models.document_view import DocumentView
 from app.models.deal import Deal
 from app.models.company import Company
 from app.models.calculation import Calculation
 from app.models.user import User
-from app.models.enums import DocumentType
+from app.models.enums import DocumentType, DealStatus
 from app.schemas.document import (
     DocumentCreate,
     DocumentUpdate,
@@ -21,6 +23,8 @@ from app.schemas.document import (
     DocumentViewCreateResult,
     DocumentViewDurationUpdate,
     DocumentViewOut,
+    DocumentConfirmRequest,
+    DocumentConfirmResult,
 )
 
 router = APIRouter(tags=["documents"])
@@ -62,11 +66,23 @@ def create_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if not db.query(Deal).filter(Deal.id == deal_id).first():
+    deal = db.query(Deal).filter(Deal.id == deal_id).first()
+    if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
 
     document = Document(deal_id=deal_id, **payload.model_dump())
     db.add(document)
+
+    # Vytvoření Nabídky implikuje, že se Deal dostal (aspoň) do fáze Nabídka -
+    # pokud je ještě dřív v pipeline (Lead/Kvalifikovaný lead), posuň ho.
+    # Nikdy needeláme krok zpět, pokud je Deal už dál (Objednávka a později) -
+    # to je případ pro dodatečnou/opravnou verzi nabídky, ne pro vrácení stavu.
+    if payload.document_type == DocumentType.NABIDKA and deal.status in (
+        DealStatus.LEAD,
+        DealStatus.KVALIFIKOVANY_LEAD,
+    ):
+        deal.status = DealStatus.NABIDKA
+
     db.commit()
     db.refresh(document)
     return document
@@ -153,6 +169,8 @@ def view_public_document(access_token: str, request: Request, db: Session = Depe
         document_type=document.document_type,
         version=document.version,
         created_at=document.created_at,
+        confirmed_at=document.confirmed_at,
+        confirmed_by_name=document.confirmed_by_name,
         company_name=company.name,
         company_ico=company.ico,
         company_dic=company.dic,
@@ -195,3 +213,41 @@ def update_view_duration(
 
     view.duration_seconds = payload.duration_seconds
     db.commit()
+
+
+@router.post("/public/documents/{access_token}/confirm", response_model=DocumentConfirmResult)
+def confirm_document(access_token: str, payload: DocumentConfirmRequest, db: Session = Depends(get_db)):
+    """
+    Elektronické potvrzení objednávky zákazníkem přes veřejný odkaz -
+    vlastní "domácí" náhrada e-signature, dokud není vybrán konkrétní
+    externí nástroj. Vyžaduje zadání celého jména (jednoduché posílení
+    důkazní hodnoty oproti pouhému kliknutí, byť nejde o kvalifikovaný
+    elektronický podpis ve smyslu eIDAS). Relevantní hlavně pro dokumenty
+    typu Objednávka: pokud je Deal stále ve stavu "Objednávka", automaticky
+    spustí stejný přechod jako externí e-signature webhook (-> Zálohová
+    faktura). Idempotentní - opakované volání po prvním potvrzení nic
+    nerozbije (jméno z prvního potvrzení se zachová).
+    """
+    document = db.query(Document).filter(Document.access_token == access_token).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not payload.confirmed_by_name or not payload.confirmed_by_name.strip():
+        raise HTTPException(status_code=422, detail="Je potřeba uvést celé jméno potvrzující osoby.")
+
+    if document.confirmed_at is None:
+        document.confirmed_at = datetime.utcnow()
+        document.confirmed_by_name = payload.confirmed_by_name.strip()
+        db.commit()
+        db.refresh(document)
+
+        if document.document_type == DocumentType.OBJEDNAVKA:
+            deal = db.query(Deal).filter(Deal.id == document.deal_id).first()
+            if deal and deal.status == DealStatus.OBJEDNAVKA:
+                perform_esignature_confirmation(db, deal)
+
+    return DocumentConfirmResult(
+        confirmed=True,
+        confirmed_at=document.confirmed_at,
+        confirmed_by_name=document.confirmed_by_name,
+    )

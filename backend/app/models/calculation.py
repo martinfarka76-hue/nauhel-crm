@@ -49,6 +49,10 @@ class Calculation(Base):
     delivery_terms = Column(String(255), nullable=True)
     payment_terms = Column(String(255), nullable=True)
 
+    # Výše zálohy v % z celkové ceny - použije se při automatickém výpočtu
+    # částky Zálohové faktury po potvrzení objednávky zákazníkem
+    deposit_percent = Column(Numeric(5, 2), nullable=False, default=50)
+
     # Kompletní snapshot všech hodnot z Excel kalkulace (flexibilní, bez nutnosti
     # migrace při každé změně struktury Excelu)
     raw_snapshot = Column(JSONB, nullable=True)
