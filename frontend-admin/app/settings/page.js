@@ -15,9 +15,12 @@ const emptySpeciesForm = {
   notes: "",
 };
 
+const emptyUserForm = { email: "", full_name: "", password: "", role: "Obchodník" };
+
 export default function SettingsPage() {
   const [species, setSpecies] = useState([]);
   const [parameters, setParameters] = useState([]);
+  const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -28,18 +31,63 @@ export default function SettingsPage() {
   const [editingParamKey, setEditingParamKey] = useState(null);
   const [editParamValue, setEditParamValue] = useState("");
 
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [userForm, setUserForm] = useState(emptyUserForm);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editUserForm, setEditUserForm] = useState(null);
+
   function loadAll() {
     setLoading(true);
-    Promise.all([api.get("/wood-species"), api.get("/pricing-parameters")])
-      .then(([s, p]) => {
+    Promise.all([api.get("/wood-species"), api.get("/pricing-parameters"), api.get("/users")])
+      .then(([s, p, u]) => {
         setSpecies(s);
         setParameters(p);
+        setUsers(u);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
 
   useEffect(loadAll, []);
+
+  async function handleCreateUser(e) {
+    e.preventDefault();
+    setError("");
+    try {
+      await api.post("/users", userForm);
+      setUserForm(emptyUserForm);
+      setShowUserForm(false);
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function startEditUser(u) {
+    setEditingUserId(u.id);
+    setEditUserForm({ full_name: u.full_name, role: u.role, is_active: u.is_active });
+  }
+
+  async function handleSaveUser(userId) {
+    setError("");
+    try {
+      await api.put(`/users/${userId}`, editUserForm);
+      setEditingUserId(null);
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleToggleUserActive(u) {
+    setError("");
+    try {
+      await api.put(`/users/${u.id}`, { is_active: !u.is_active });
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function handleCreateSpecies(e) {
     e.preventDefault();
@@ -121,6 +169,156 @@ export default function SettingsPage() {
 
       {!loading && (
         <>
+          <div className="card" style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontWeight: 600 }}>Uživatelé</div>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowUserForm(!showUserForm);
+                  setUserForm(emptyUserForm);
+                }}
+              >
+                {showUserForm ? "Zrušit" : "+ Nový uživatel"}
+              </button>
+            </div>
+
+            {showUserForm && (
+              <form
+                onSubmit={handleCreateUser}
+                style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--paper-200)" }}
+              >
+                <div className="field">
+                  <label>Celé jméno *</label>
+                  <input
+                    required
+                    value={userForm.full_name}
+                    onChange={(e) => setUserForm({ ...userForm, full_name: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                  />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div className="field">
+                    <label>Heslo * (min. 8 znaků)</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Role</label>
+                    <select
+                      value={userForm.role}
+                      onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    >
+                      <option value="Obchodník">Obchodník</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                  </div>
+                </div>
+                <button className="btn btn-primary" type="submit">
+                  Vytvořit uživatele
+                </button>
+              </form>
+            )}
+
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Jméno</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Stav</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) =>
+                  editingUserId === u.id ? (
+                    <tr key={u.id}>
+                      <td>
+                        <input
+                          value={editUserForm.full_name}
+                          onChange={(e) => setEditUserForm({ ...editUserForm, full_name: e.target.value })}
+                          style={{ fontSize: 13, padding: "4px 6px", width: "100%" }}
+                        />
+                      </td>
+                      <td style={{ color: "var(--ink-600)" }}>{u.email}</td>
+                      <td>
+                        <select
+                          value={editUserForm.role}
+                          onChange={(e) => setEditUserForm({ ...editUserForm, role: e.target.value })}
+                          style={{ fontSize: 13 }}
+                        >
+                          <option value="Obchodník">Obchodník</option>
+                          <option value="Admin">Admin</option>
+                        </select>
+                      </td>
+                      <td>{u.is_active ? "Aktivní" : "Deaktivovaný"}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <button
+                          className="btn btn-primary"
+                          style={{ padding: "3px 8px", fontSize: 11.5, marginRight: 4 }}
+                          onClick={() => handleSaveUser(u.id)}
+                        >
+                          Uložit
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: "3px 8px", fontSize: 11.5 }}
+                          onClick={() => setEditingUserId(null)}
+                        >
+                          Zrušit
+                        </button>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={u.id}>
+                      <td style={{ fontWeight: 600 }}>{u.full_name}</td>
+                      <td style={{ color: "var(--ink-600)" }}>{u.email}</td>
+                      <td>{u.role}</td>
+                      <td>
+                        <span
+                          className="badge"
+                          style={{ background: u.is_active ? "var(--success)" : "var(--ink-400)" }}
+                        >
+                          {u.is_active ? "Aktivní" : "Deaktivovaný"}
+                        </span>
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: "3px 8px", fontSize: 11.5, marginRight: 4 }}
+                          onClick={() => startEditUser(u)}
+                        >
+                          Upravit
+                        </button>
+                        <button
+                          className={u.is_active ? "btn btn-danger" : "btn btn-secondary"}
+                          style={{ padding: "3px 8px", fontSize: 11.5 }}
+                          onClick={() => handleToggleUserActive(u)}
+                        >
+                          {u.is_active ? "Deaktivovat" : "Aktivovat"}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
+
           <div className="card" style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: 600, marginBottom: 12 }}>Cenové parametry</div>
             <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 14 }}>

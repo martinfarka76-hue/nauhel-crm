@@ -10,6 +10,7 @@ from app.models.enums import DealStatus
 class DealBase(BaseModel):
     company_id: uuid.UUID
     contact_id: Optional[uuid.UUID] = None
+    owner_user_id: Optional[uuid.UUID] = None
     name: str
     status: DealStatus = DealStatus.LEAD
     price: Optional[Decimal] = None
@@ -24,6 +25,7 @@ class DealCreate(DealBase):
 
 class DealUpdate(BaseModel):
     contact_id: Optional[uuid.UUID] = None
+    owner_user_id: Optional[uuid.UUID] = None
     name: Optional[str] = None
     status: Optional[DealStatus] = None
     price: Optional[Decimal] = None

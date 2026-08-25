@@ -10,6 +10,7 @@ from app.models.email_template import EmailTemplate
 from app.models.user import User
 from app.models.wood_species import WoodSpecies
 from app.models.pricing_parameter import PricingParameter
+from app.models.notification import Notification
 from app.models.enums import DealStatus, DocumentType, UserRole, ItemCategory
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "User",
     "WoodSpecies",
     "PricingParameter",
+    "Notification",
     "DealStatus",
     "DocumentType",
     "UserRole",

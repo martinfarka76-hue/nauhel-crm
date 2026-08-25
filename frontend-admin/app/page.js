@@ -9,7 +9,7 @@ const PAGE_SIZE = 50;
 
 function formatPrice(price) {
   if (price === null || price === undefined) return "—";
-  const n = Number(price);
+  const n = Math.round(Number(price));
   return n.toLocaleString("cs-CZ") + " Kč";
 }
 
@@ -27,9 +27,22 @@ function csvEscape(value) {
   return str;
 }
 
+const emptyNewDealForm = {
+  company_id: "",
+  contact_id: "",
+  owner_user_id: "",
+  name: "",
+  price: "",
+  expected_close_date: "",
+  expected_invoice_date: "",
+};
+
 export default function DashboardPage() {
   const [deals, setDeals] = useState([]);
+  const [companiesList, setCompaniesList] = useState([]);
   const [companies, setCompanies] = useState({});
+  const [users, setUsers] = useState([]);
+  const [usersById, setUsersById] = useState({});
   const [stageProbabilities, setStageProbabilities] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,20 +57,76 @@ export default function DashboardPage() {
   const [sortDir, setSortDir] = useState("desc"); // "asc" | "desc"
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    Promise.all([api.get("/deals"), api.get("/companies"), api.get("/stage-config")])
-      .then(([dealsData, companiesData, stageConfigData]) => {
+  const [showNewDealForm, setShowNewDealForm] = useState(false);
+  const [newDealForm, setNewDealForm] = useState(emptyNewDealForm);
+  const [newDealContacts, setNewDealContacts] = useState([]);
+  const [savingNewDeal, setSavingNewDeal] = useState(false);
+
+  function loadAll() {
+    setLoading(true);
+    Promise.all([
+      api.get("/deals"),
+      api.get("/companies"),
+      api.get("/stage-config"),
+      api.get("/users"),
+      api.get("/auth/me"),
+    ])
+      .then(([dealsData, companiesData, stageConfigData, usersData, me]) => {
         setDeals(dealsData);
+        setCompaniesList(companiesData);
         const map = {};
         companiesData.forEach((c) => (map[c.id] = c.name));
         setCompanies(map);
         const probMap = {};
         stageConfigData.forEach((s) => (probMap[s.stage_name] = s.probability_percent));
         setStageProbabilities(probMap);
+        setUsers(usersData);
+        const usersMap = {};
+        usersData.forEach((u) => (usersMap[u.id] = u.full_name));
+        setUsersById(usersMap);
+        setNewDealForm((prev) => ({ ...prev, owner_user_id: prev.owner_user_id || me.id }));
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(loadAll, []);
+
+  useEffect(() => {
+    if (!newDealForm.company_id) {
+      setNewDealContacts([]);
+      return;
+    }
+    api
+      .get(`/contacts?company_id=${newDealForm.company_id}`)
+      .then(setNewDealContacts)
+      .catch(() => setNewDealContacts([]));
+  }, [newDealForm.company_id]);
+
+  async function handleCreateDeal(e) {
+    e.preventDefault();
+    setSavingNewDeal(true);
+    setError("");
+    try {
+      await api.post("/deals", {
+        company_id: newDealForm.company_id,
+        contact_id: newDealForm.contact_id || null,
+        owner_user_id: newDealForm.owner_user_id || null,
+        name: newDealForm.name,
+        status: "Lead",
+        price: newDealForm.price ? Number(newDealForm.price) : null,
+        expected_close_date: newDealForm.expected_close_date || null,
+        expected_invoice_date: newDealForm.expected_invoice_date || null,
+      });
+      setNewDealForm({ ...emptyNewDealForm, owner_user_id: newDealForm.owner_user_id });
+      setShowNewDealForm(false);
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingNewDeal(false);
+    }
+  }
 
   const hasDateFilter = !!(dateFrom || dateTo || invoiceDateFrom || invoiceDateTo);
 
@@ -99,7 +168,6 @@ export default function DashboardPage() {
     return { total, weighted };
   }
 
-  // Celkové součty přes všechny filtrované případy (napříč stavy) - pro seznam
   const overallTotals = filteredDeals.reduce(
     (acc, d) => {
       const price = Number(d.price) || 0;
@@ -122,6 +190,7 @@ export default function DashboardPage() {
 
   function sortValue(deal, key) {
     if (key === "company") return companies[deal.company_id] || "";
+    if (key === "owner") return usersById[deal.owner_user_id] || "";
     if (key === "price") return Number(deal.price) || 0;
     return deal[key] || "";
   }
@@ -151,17 +220,17 @@ export default function DashboardPage() {
   }
 
   function handleExportCsv() {
-    const header = ["Název", "Firma", "Stav", "Cena", "Uzavření", "Fakturace"];
+    const header = ["Název", "Firma", "Stav", "Cena", "Vlastník", "Uzavření", "Fakturace"];
     const rows = sortedDeals.map((d) => [
       d.name,
       companies[d.company_id] || "",
       d.status,
       d.price ?? "",
+      usersById[d.owner_user_id] || "",
       d.expected_close_date || "",
       d.expected_invoice_date || "",
     ]);
     const csvLines = [header, ...rows].map((row) => row.map(csvEscape).join(";"));
-    // BOM na začátku, ať Excel správně rozpozná UTF-8 (jinak by zobrazoval diakritiku špatně)
     const csvContent = "\uFEFF" + csvLines.join("\r\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -212,6 +281,105 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowNewDealForm(!showNewDealForm)}
+        >
+          {showNewDealForm ? "Zrušit" : "+ Nový obchodní případ"}
+        </button>
+      </div>
+
+      {showNewDealForm && (
+        <div className="card" style={{ marginBottom: 20, maxWidth: 560 }}>
+          <form onSubmit={handleCreateDeal}>
+            <div className="field">
+              <label>Firma *</label>
+              <select
+                required
+                value={newDealForm.company_id}
+                onChange={(e) =>
+                  setNewDealForm({ ...newDealForm, company_id: e.target.value, contact_id: "" })
+                }
+              >
+                <option value="">— vyber firmu —</option>
+                {companiesList.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Odpovědný kontakt</label>
+              <select
+                value={newDealForm.contact_id}
+                onChange={(e) => setNewDealForm({ ...newDealForm, contact_id: e.target.value })}
+                disabled={!newDealForm.company_id}
+              >
+                <option value="">— žádný / nevybráno —</option>
+                {newDealContacts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.first_name} {c.last_name} {c.position ? `(${c.position})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Vlastník případu (obchodník)</label>
+              <select
+                value={newDealForm.owner_user_id}
+                onChange={(e) => setNewDealForm({ ...newDealForm, owner_user_id: e.target.value })}
+              >
+                <option value="">— nepřiřazeno —</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Název případu *</label>
+              <input
+                required
+                value={newDealForm.name}
+                onChange={(e) => setNewDealForm({ ...newDealForm, name: e.target.value })}
+              />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div className="field">
+                <label>Odhad. cena (Kč)</label>
+                <input
+                  type="number"
+                  value={newDealForm.price}
+                  onChange={(e) => setNewDealForm({ ...newDealForm, price: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>Odhad. uzavření</label>
+                <input
+                  type="date"
+                  value={newDealForm.expected_close_date}
+                  onChange={(e) => setNewDealForm({ ...newDealForm, expected_close_date: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>Odhad. fakturace</label>
+                <input
+                  type="date"
+                  value={newDealForm.expected_invoice_date}
+                  onChange={(e) => setNewDealForm({ ...newDealForm, expected_invoice_date: e.target.value })}
+                />
+              </div>
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={savingNewDeal}>
+              {savingNewDeal ? "Vytvářím…" : "Vytvořit případ"}
+            </button>
+          </form>
+        </div>
+      )}
 
       <div
         style={{
@@ -367,6 +535,11 @@ export default function DashboardPage() {
                           {deal.expected_invoice_date && <span>Fakturace {formatDateShort(deal.expected_invoice_date)}</span>}
                         </div>
                       )}
+                      {deal.owner_user_id && usersById[deal.owner_user_id] && (
+                        <div style={{ fontSize: 11, color: "var(--ember-600)", marginTop: 3, fontWeight: 600 }}>
+                          👤 {usersById[deal.owner_user_id]}
+                        </div>
+                      )}
                     </a>
                   ))}
                   {statusDeals.length === 0 && (
@@ -410,6 +583,7 @@ export default function DashboardPage() {
                     <SortHeader label="Firma" sortKeyName="company" />
                     <SortHeader label="Stav" sortKeyName="status" />
                     <SortHeader label="Cena" sortKeyName="price" />
+                    <SortHeader label="Vlastník" sortKeyName="owner" />
                     <SortHeader label="Uzavření" sortKeyName="expected_close_date" />
                     <SortHeader label="Fakturace" sortKeyName="expected_invoice_date" />
                   </tr>
@@ -425,6 +599,7 @@ export default function DashboardPage() {
                         </span>
                       </td>
                       <td className="mono">{formatPrice(deal.price)}</td>
+                      <td>{usersById[deal.owner_user_id] || "—"}</td>
                       <td className="mono">{formatDateShort(deal.expected_close_date) || "—"}</td>
                       <td className="mono">{formatDateShort(deal.expected_invoice_date) || "—"}</td>
                     </tr>

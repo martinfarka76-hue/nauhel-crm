@@ -20,6 +20,7 @@ class Deal(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     contact_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
+    owner_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     name = Column(String(255), nullable=False)
     status = Column(Enum(DealStatus), nullable=False, default=DealStatus.LEAD)

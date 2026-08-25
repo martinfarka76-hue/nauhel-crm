@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import UserRole
@@ -19,3 +20,16 @@ class UserOut(BaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+
+
+class UserCreate(BaseModel):
+    email: str
+    full_name: str
+    password: str
+    role: UserRole = UserRole.OBCHODNIK
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None

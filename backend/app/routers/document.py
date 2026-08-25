@@ -14,6 +14,7 @@ from app.models.company import Company
 from app.models.calculation import Calculation
 from app.models.user import User
 from app.models.enums import DocumentType, DealStatus
+from app.models.notification import Notification
 from app.schemas.document import (
     DocumentCreate,
     DocumentUpdate,
@@ -181,11 +182,25 @@ def view_public_document(access_token: str, request: Request, db: Session = Depe
 
     # Zaloguj zobrazení - IP z requestu (za reverse proxy by šlo číst X-Forwarded-For,
     # zatím jednoduše přímo z klienta)
+    is_first_view = (
+        db.query(DocumentView).filter(DocumentView.document_id == document.id).count() == 0
+    )
+
     view = DocumentView(
         document_id=document.id,
         ip_address=request.client.host if request.client else None,
     )
     db.add(view)
+
+    if is_first_view:
+        notification = Notification(
+            notification_type="document_first_viewed",
+            message=f"{document.document_type} byla poprvé zobrazena zákazníkem - případ „{deal.name}“ ({company.name}).",
+            deal_id=deal.id,
+            document_id=document.id,
+        )
+        db.add(notification)
+
     db.commit()
     db.refresh(view)
 
@@ -235,14 +250,35 @@ def confirm_document(access_token: str, payload: DocumentConfirmRequest, db: Ses
     if not payload.confirmed_by_name or not payload.confirmed_by_name.strip():
         raise HTTPException(status_code=422, detail="Je potřeba uvést celé jméno potvrzující osoby.")
 
+    if not payload.agreed_to_terms:
+        raise HTTPException(
+            status_code=422,
+            detail="Je potřeba potvrdit souhlas se Všeobecnými obchodními podmínkami.",
+        )
+
     if document.confirmed_at is None:
         document.confirmed_at = datetime.utcnow()
         document.confirmed_by_name = payload.confirmed_by_name.strip()
+        document.agreed_to_terms = True
         db.commit()
         db.refresh(document)
 
+        deal = db.query(Deal).filter(Deal.id == document.deal_id).first()
+
         if document.document_type == DocumentType.OBJEDNAVKA:
-            deal = db.query(Deal).filter(Deal.id == document.deal_id).first()
+            company = db.query(Company).filter(Company.id == deal.company_id).first() if deal else None
+            notification = Notification(
+                notification_type="order_confirmed",
+                message=(
+                    f"Objednávka potvrzena zákazníkem ({document.confirmed_by_name}) - "
+                    f"případ „{deal.name}“ ({company.name if company else '—'})."
+                ),
+                deal_id=document.deal_id,
+                document_id=document.id,
+            )
+            db.add(notification)
+            db.commit()
+
             if deal and deal.status == DealStatus.OBJEDNAVKA:
                 perform_esignature_confirmation(db, deal)
 

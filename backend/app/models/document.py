@@ -1,7 +1,7 @@
 import uuid
 import secrets
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Numeric, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, String, Integer, Numeric, Boolean, DateTime, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -38,6 +38,9 @@ class Document(Base):
     # vlastní "domácí" náhrada e-signature, dokud není vybrán konkrétní nástroj)
     confirmed_at = Column(DateTime, nullable=True)
     confirmed_by_name = Column(String(255), nullable=True)
+    # Explicitní souhlas s Všeobecnými obchodními podmínkami při potvrzení
+    # objednávky - právně relevantní záznam, oddělený od samotného potvrzení
+    agreed_to_terms = Column(Boolean, nullable=False, default=False)
 
     # Vyčíslená částka - relevantní hlavně pro Zálohová faktura (záloha
     # dle deposit_percent kalkulace) a Finální faktura (zbytek ceny)

@@ -31,6 +31,8 @@ export default function PublicOfferPage() {
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState("");
   const [confirmName, setConfirmName] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const VOP_URL = process.env.NEXT_PUBLIC_VOP_URL || "https://www.nauhel.cz/vop";
   const viewIdRef = useRef(null);
   const startTimeRef = useRef(null);
 
@@ -122,6 +124,10 @@ export default function PublicOfferPage() {
       setConfirmError("Prosím vyplňte své celé jméno.");
       return;
     }
+    if (!agreedToTerms) {
+      setConfirmError("Je potřeba potvrdit souhlas se Všeobecnými obchodními podmínkami.");
+      return;
+    }
     setConfirming(true);
     setConfirmError("");
     try {
@@ -129,7 +135,7 @@ export default function PublicOfferPage() {
       const res = await fetch(`${API_URL}/public/documents/${token}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmed_by_name: confirmName.trim() }),
+        body: JSON.stringify({ confirmed_by_name: confirmName.trim(), agreed_to_terms: true }),
       });
       if (!res.ok) throw new Error("Potvrzení se nezdařilo, zkuste to prosím znovu.");
       const data = await res.json();
@@ -208,6 +214,39 @@ export default function PublicOfferPage() {
                   textAlign: "center",
                 }}
               />
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  maxWidth: 340,
+                  margin: "0 auto 16px",
+                  fontSize: 12.5,
+                  color: "var(--ink-600)",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                />
+                <span>
+                  Souhlasím se{" "}
+                  <a
+                    href={VOP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--ember-600, #9c5424)", textDecoration: "underline" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Všeobecnými obchodními podmínkami
+                  </a>{" "}
+                  společnosti NAUHEL s.r.o.
+                </span>
+              </label>
               <div>
                 <button
                   onClick={handleConfirmOrder}

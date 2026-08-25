@@ -29,6 +29,7 @@ class DocumentOut(BaseModel):
     email_sent_at: Optional[datetime]
     confirmed_at: Optional[datetime]
     confirmed_by_name: Optional[str] = None
+    agreed_to_terms: bool = False
     amount: Optional[Decimal] = None
     created_at: datetime
     updated_at: datetime
@@ -83,6 +84,7 @@ class DocumentPublicOut(BaseModel):
 
 class DocumentConfirmRequest(BaseModel):
     confirmed_by_name: str
+    agreed_to_terms: bool
 
 
 class DocumentConfirmResult(BaseModel):

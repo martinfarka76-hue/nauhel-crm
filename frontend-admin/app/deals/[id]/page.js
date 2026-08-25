@@ -65,6 +65,8 @@ export default function DealDetailPage() {
   const { id } = useParams();
   const [deal, setDeal] = useState(null);
   const [company, setCompany] = useState(null);
+  const [companyContacts, setCompanyContacts] = useState([]);
+  const [users, setUsers] = useState([]);
   const [calculations, setCalculations] = useState([]);
   const [calcItems, setCalcItems] = useState({}); // { [calcId]: [items] }
   const [woodSpeciesList, setWoodSpeciesList] = useState([]);
@@ -109,12 +111,16 @@ export default function DealDetailPage() {
         setDeal(d);
         return Promise.all([
           api.get(`/companies/${d.company_id}`),
+          api.get(`/contacts?company_id=${d.company_id}`),
+          api.get(`/users`),
           api.get(`/deals/${id}/calculations`),
           api.get(`/deals/${id}/documents`),
         ]);
       })
-      .then(async ([c, calcs, docs]) => {
+      .then(async ([c, dealContacts, usersData, calcs, docs]) => {
         setCompany(c);
+        setCompanyContacts(dealContacts);
+        setUsers(usersData);
         setCalculations(calcs);
         setDocuments(docs);
         const itemsEntries = await Promise.all(
@@ -171,6 +177,8 @@ export default function DealDetailPage() {
     setDealEditForm({
       name: deal.name,
       price: deal.price != null ? String(deal.price) : "",
+      contact_id: deal.contact_id || "",
+      owner_user_id: deal.owner_user_id || "",
       expected_close_date: deal.expected_close_date || "",
       expected_invoice_date: deal.expected_invoice_date || "",
       deposit_paid: deal.deposit_paid,
@@ -185,6 +193,8 @@ export default function DealDetailPage() {
       await api.put(`/deals/${id}`, {
         name: dealEditForm.name,
         price: dealEditForm.price ? Number(dealEditForm.price) : null,
+        contact_id: dealEditForm.contact_id || null,
+        owner_user_id: dealEditForm.owner_user_id || null,
         expected_close_date: dealEditForm.expected_close_date || null,
         expected_invoice_date: dealEditForm.expected_invoice_date || null,
         deposit_paid: dealEditForm.deposit_paid,
@@ -530,7 +540,7 @@ export default function DealDetailPage() {
               "—"
             )}
           </p>
-          <div style={{ fontSize: 12.5, color: "var(--ink-600)", display: "flex", gap: 16, marginTop: -8, marginBottom: 16 }}>
+          <div style={{ fontSize: 12.5, color: "var(--ink-600)", display: "flex", gap: 16, marginTop: -8, marginBottom: 4 }}>
             <span>
               {CLOSE_DATE_EDITABLE_STATUSES.includes(deal.status) ? "Odhad uzavření" : "Uzavřeno"}:{" "}
               <strong>{formatDateOnly(deal.expected_close_date)}</strong>
@@ -538,6 +548,23 @@ export default function DealDetailPage() {
             <span>
               {deal.status === INVOICE_DATE_LOCKED_STATUS ? "Fakturováno" : "Odhad fakturace"}:{" "}
               <strong>{formatDateOnly(deal.expected_invoice_date)}</strong>
+            </span>
+          </div>
+          <div style={{ fontSize: 12.5, color: "var(--ink-600)", display: "flex", gap: 16, marginBottom: 16 }}>
+            <span>
+              Kontakt:{" "}
+              <strong>
+                {(() => {
+                  const contact = companyContacts.find((c) => c.id === deal.contact_id);
+                  return contact ? `${contact.first_name} ${contact.last_name}` : "—";
+                })()}
+              </strong>
+            </span>
+            <span>
+              Vlastník:{" "}
+              <strong>
+                {users.find((u) => u.id === deal.owner_user_id)?.full_name || "—"}
+              </strong>
             </span>
           </div>
         </div>
@@ -570,6 +597,36 @@ export default function DealDetailPage() {
                 value={dealEditForm.name}
                 onChange={(e) => setDealEditForm({ ...dealEditForm, name: e.target.value })}
               />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="field">
+                <label>Odpovědný kontakt</label>
+                <select
+                  value={dealEditForm.contact_id}
+                  onChange={(e) => setDealEditForm({ ...dealEditForm, contact_id: e.target.value })}
+                >
+                  <option value="">— žádný —</option>
+                  {companyContacts.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.first_name} {c.last_name} {c.position ? `(${c.position})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Vlastník případu</label>
+                <select
+                  value={dealEditForm.owner_user_id}
+                  onChange={(e) => setDealEditForm({ ...dealEditForm, owner_user_id: e.target.value })}
+                >
+                  <option value="">— nepřiřazeno —</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="field">
