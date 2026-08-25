@@ -23,6 +23,7 @@ from app.models.deal import Deal
 from app.models.document import Document
 from app.models.calculation import Calculation
 from app.models.enums import DealStatus, DocumentType
+from app.core.customer_notifications import notify_customer_document_created
 
 
 # Stavy dosažitelné manuálně přes /transition endpoint (bez Ztraceno, to je vždy povoleno zvlášť)
@@ -86,6 +87,9 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
             version=version,
         )
         db.add(document)
+        db.commit()
+        db.refresh(document)
+        notify_customer_document_created(db, document, deal)
 
     # Nabídka -> Objednávka: zaznamenej skutečné datum uzavření (přestává být
     # jen odhad zadaný uživatelem, "zamkne se" na dnešní datum). Vytváří
@@ -106,6 +110,9 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
             version=version,
         )
         db.add(document)
+        db.commit()
+        db.refresh(document)
+        notify_customer_document_created(db, document, deal)
 
     # Zálohová faktura -> Vyrobeno: vyžaduje zaplacenou zálohu, vytváří Dodací list
     if to_status == DealStatus.VYROBENO:

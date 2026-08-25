@@ -1,4 +1,5 @@
 import uuid
+import os
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.deal_transitions import perform_esignature_confirmation
+from app.core.ms_graph import send_email
+from app.core.customer_notifications import notify_customer_document_created
 from app.models.document import Document
 from app.models.document_view import DocumentView
 from app.models.deal import Deal
@@ -86,6 +89,7 @@ def create_document(
 
     db.commit()
     db.refresh(document)
+    notify_customer_document_created(db, document, deal)
     return document
 
 
@@ -278,6 +282,20 @@ def confirm_document(access_token: str, payload: DocumentConfirmRequest, db: Ses
             )
             db.add(notification)
             db.commit()
+
+            admin_email = os.environ.get("ADMIN_NOTIFICATION_EMAIL")
+            if admin_email and deal:
+                admin_base_url = os.environ.get("ADMIN_BASE_URL", "http://localhost:18081")
+                deal_link = f"{admin_base_url}/deals/{document.deal_id}"
+                body_html = (
+                    f"<p><strong>Objednávka byla potvrzena zákazníkem.</strong></p>"
+                    f"<p>Případ: {deal.name}<br>"
+                    f"Firma: {company.name if company else '—'}<br>"
+                    f"Potvrdil(a): {document.confirmed_by_name}<br>"
+                    f"Datum: {document.confirmed_at.strftime('%d.%m.%Y %H:%M')}</p>"
+                    f'<p><a href="{deal_link}">Otevřít případ v CRM</a></p>'
+                )
+                send_email(admin_email, f"Objednávka potvrzena - {deal.name}", body_html)
 
             if deal and deal.status == DealStatus.OBJEDNAVKA:
                 perform_esignature_confirmation(db, deal)
