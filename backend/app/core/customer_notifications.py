@@ -14,11 +14,6 @@ from app.models.contact import Contact
 from app.models.company import Company
 from app.models.enums import DocumentType
 
-SIGNATURE_HTML = (
-    "<p>NAUHEL s.r.o. · Ve Mlejnku 108, 257 65 Čechtice<br>"
-    "telefon: 605 457 927</p>"
-)
-
 
 def notify_customer_document_created(db: Session, document: Document, deal: Deal) -> None:
     """
@@ -47,7 +42,7 @@ def notify_customer_document_created(db: Session, document: Document, deal: Deal
             f"<p>zasíláme Vám cenovou nabídku na zakázku „{deal.name}“{company_note}.</p>"
             f'<p><a href="{link}">Zobrazit nabídku</a></p>'
             f"<p>V případě dotazů nás neváhejte kontaktovat.</p>"
-            f"{SIGNATURE_HTML}"
+            f"<p>NAUHEL s.r.o.</p>"
         )
     else:  # OBJEDNAVKA
         subject = f"Potvrzení objednávky - {deal.name}"
@@ -56,7 +51,7 @@ def notify_customer_document_created(db: Session, document: Document, deal: Deal
             f"<p>na odkazu níže najdete shrnutí objednávky „{deal.name}“{company_note}. "
             f"Prosíme o její elektronické potvrzení kliknutím na tlačítko na stránce.</p>"
             f'<p><a href="{link}">Potvrdit objednávku</a></p>'
-            f"{SIGNATURE_HTML}"
+            f"<p>NAUHEL s.r.o.</p>"
         )
 
     send_email(contact.email, subject, body_html)

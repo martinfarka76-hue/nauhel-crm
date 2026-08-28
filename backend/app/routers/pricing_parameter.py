@@ -11,7 +11,7 @@ router = APIRouter(prefix="/pricing-parameters", tags=["pricing-parameters"])
 
 
 @router.get("", response_model=list[PricingParameterOut])
-def list_pricing_parameters(db: Session = Depends(get_db)):
+def list_pricing_parameters(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(PricingParameter).order_by(PricingParameter.key).all()
 
 

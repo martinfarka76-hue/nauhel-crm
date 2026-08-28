@@ -12,7 +12,7 @@ router = APIRouter(prefix="/wood-species", tags=["wood-species"])
 
 
 @router.get("", response_model=list[WoodSpeciesOut])
-def list_wood_species(db: Session = Depends(get_db)):
+def list_wood_species(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(WoodSpecies).order_by(WoodSpecies.name).all()
 
 

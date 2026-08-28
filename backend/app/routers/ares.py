@@ -1,5 +1,8 @@
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.core.dependencies import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/ares", tags=["ares"])
 
@@ -7,7 +10,7 @@ ARES_BASE_URL = "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-su
 
 
 @router.get("/{ico}")
-def lookup_ico(ico: str):
+def lookup_ico(ico: str, current_user: User = Depends(get_current_user)):
     """
     Vyhledá firmu podle IČO ve veřejném registru ARES (ares.gov.cz).
     Vrací název, sídlo a IČO. DIČ ARES přímo neposkytuje - odhad "CZ{ico}"

@@ -102,6 +102,7 @@ export default function CompanyDetailPage() {
       name: company.name,
       ico: company.ico || "",
       dic: company.dic || "",
+      website: company.website || "",
       address: company.address || "",
       notes: company.notes || "",
     });
@@ -246,6 +247,14 @@ export default function CompanyDetailPage() {
                 <input
                   value={companyForm.dic}
                   onChange={(e) => setCompanyForm({ ...companyForm, dic: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>Web</label>
+                <input
+                  value={companyForm.website}
+                  onChange={(e) => setCompanyForm({ ...companyForm, website: e.target.value })}
+                  placeholder="např. nauhel.cz"
                 />
               </div>
               <div className="field">
@@ -537,7 +546,7 @@ export default function CompanyDetailPage() {
                 </td>
                 <td style={{ color: "var(--ink-600)" }}>{formatDate(doc.created_at)}</td>
                 <td>
-                  {doc.document_type === "Nabídka" && (
+                  {(doc.document_type === "Nabídka" || doc.document_type === "Objednávka") && (
                     <button
                       className="btn btn-secondary"
                       style={{ padding: "4px 10px", fontSize: 12 }}

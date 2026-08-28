@@ -13,7 +13,11 @@ router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
 @router.get("", response_model=list[ContactOut])
-def list_contacts(company_id: Optional[uuid.UUID] = None, db: Session = Depends(get_db)):
+def list_contacts(
+    company_id: Optional[uuid.UUID] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     query = db.query(Contact)
     if company_id:
         query = query.filter(Contact.company_id == company_id)
@@ -34,7 +38,7 @@ def create_contact(
 
 
 @router.get("/{contact_id}", response_model=ContactOut)
-def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     contact = db.query(Contact).filter(Contact.id == contact_id).first()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")

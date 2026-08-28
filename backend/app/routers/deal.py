@@ -20,6 +20,7 @@ def list_deals(
     company_id: Optional[uuid.UUID] = None,
     status: Optional[DealStatus] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     query = db.query(Deal)
     if company_id:
@@ -43,7 +44,7 @@ def create_deal(
 
 
 @router.get("/{deal_id}", response_model=DealOut)
-def get_deal(deal_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_deal(deal_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     deal = db.query(Deal).filter(Deal.id == deal_id).first()
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")

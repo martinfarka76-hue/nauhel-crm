@@ -1,3 +1,4 @@
+import os
 import logging
 from contextlib import asynccontextmanager
 
@@ -32,11 +33,28 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 
-app = FastAPI(title="NAUHEL CRM API", lifespan=lifespan)
+app = FastAPI(
+    title="NAUHEL CRM API",
+    lifespan=lifespan,
+    # Swagger (/docs, /redoc, /openapi.json) lze vypnout přes .env
+    # (API_DOCS_ENABLED=false) - důležité, pokud je API vystrčené na
+    # veřejný internet (Cloudflare Tunnel apod.), ať nikdo zvenčí nevidí
+    # mapu celého API bez přihlášení.
+    docs_url="/docs" if os.environ.get("API_DOCS_ENABLED", "true").lower() != "false" else None,
+    redoc_url="/redoc" if os.environ.get("API_DOCS_ENABLED", "true").lower() != "false" else None,
+    openapi_url="/openapi.json" if os.environ.get("API_DOCS_ENABLED", "true").lower() != "false" else None,
+)
+
+# CORS origins konfigurovatelné přes .env (CORS_ALLOWED_ORIGINS, čárkou
+# oddělený seznam) - ať se dá snadno přidat veřejnou doménu (Cloudflare
+# Tunnel apod.) bez nutnosti měnit kód, jen upravit .env a restartovat.
+_default_origins = "http://localhost:18081,http://localhost:18082"
+_cors_origins = os.environ.get("CORS_ALLOWED_ORIGINS", _default_origins)
+allowed_origins = [origin.strip() for origin in _cors_origins.split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:18081", "http://localhost:18082"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

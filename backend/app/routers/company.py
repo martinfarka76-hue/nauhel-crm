@@ -12,7 +12,7 @@ router = APIRouter(prefix="/companies", tags=["companies"])
 
 
 @router.get("", response_model=list[CompanyOut])
-def list_companies(db: Session = Depends(get_db)):
+def list_companies(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Company).order_by(Company.created_at.desc()).all()
 
 
@@ -30,7 +30,7 @@ def create_company(
 
 
 @router.get("/{company_id}", response_model=CompanyOut)
-def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_company(company_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")

@@ -9,7 +9,7 @@ export default function CompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", ico: "", dic: "", address: "" });
+  const [form, setForm] = useState({ name: "", ico: "", dic: "", website: "", address: "" });
   const [saving, setSaving] = useState(false);
   const [aresLoading, setAresLoading] = useState(false);
   const [aresError, setAresError] = useState("");
@@ -31,7 +31,7 @@ export default function CompaniesPage() {
     setError("");
     try {
       await api.post("/companies", form);
-      setForm({ name: "", ico: "", dic: "", address: "" });
+      setForm({ name: "", ico: "", dic: "", website: "", address: "" });
       setShowForm(false);
       loadCompanies();
     } catch (err) {
@@ -118,6 +118,14 @@ export default function CompaniesPage() {
               <input
                 value={form.dic}
                 onChange={(e) => setForm({ ...form, dic: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Web</label>
+              <input
+                value={form.website}
+                onChange={(e) => setForm({ ...form, website: e.target.value })}
+                placeholder="např. nauhel.cz"
               />
             </div>
             <div className="field">

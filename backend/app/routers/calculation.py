@@ -25,7 +25,11 @@ def _get_calculation_or_404(db: Session, calculation_id: uuid.UUID) -> Calculati
 # --- Calculation (hlavička) ---
 
 @router.get("/deals/{deal_id}/calculations", response_model=list[CalculationOut])
-def list_calculations_for_deal(deal_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_calculations_for_deal(
+    deal_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     if not db.query(Deal).filter(Deal.id == deal_id).first():
         raise HTTPException(status_code=404, detail="Deal not found")
     return (
@@ -59,7 +63,9 @@ def create_calculation(
 
 
 @router.get("/calculations/{calculation_id}", response_model=CalculationOut)
-def get_calculation(calculation_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_calculation(
+    calculation_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     return _get_calculation_or_404(db, calculation_id)
 
 
@@ -92,7 +98,11 @@ def delete_calculation(
 # --- CalculationItem (řádkové položky) ---
 
 @router.get("/calculations/{calculation_id}/items", response_model=list[CalculationItemOut])
-def list_calculation_items(calculation_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_calculation_items(
+    calculation_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     _get_calculation_or_404(db, calculation_id)
     return (
         db.query(CalculationItem)

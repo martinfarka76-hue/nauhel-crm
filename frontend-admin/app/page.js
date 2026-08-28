@@ -27,6 +27,17 @@ function csvEscape(value) {
   return str;
 }
 
+function getDomain(url) {
+  if (!url) return null;
+  try {
+    let u = url.trim();
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    return new URL(u).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
 const emptyNewDealForm = {
   company_id: "",
   contact_id: "",
@@ -41,6 +52,7 @@ export default function DashboardPage() {
   const [deals, setDeals] = useState([]);
   const [companiesList, setCompaniesList] = useState([]);
   const [companies, setCompanies] = useState({});
+  const [companyWebsites, setCompanyWebsites] = useState({});
   const [users, setUsers] = useState([]);
   const [usersById, setUsersById] = useState({});
   const [stageProbabilities, setStageProbabilities] = useState({});
@@ -75,8 +87,13 @@ export default function DashboardPage() {
         setDeals(dealsData);
         setCompaniesList(companiesData);
         const map = {};
-        companiesData.forEach((c) => (map[c.id] = c.name));
+        const websiteMap = {};
+        companiesData.forEach((c) => {
+          map[c.id] = c.name;
+          websiteMap[c.id] = c.website;
+        });
         setCompanies(map);
+        setCompanyWebsites(websiteMap);
         const probMap = {};
         stageConfigData.forEach((s) => (probMap[s.stage_name] = s.probability_percent));
         setStageProbabilities(probMap);
@@ -387,8 +404,10 @@ export default function DashboardPage() {
           gap: 14,
           alignItems: "center",
           marginBottom: 20,
-          paddingBottom: 12,
-          borderBottom: "1px solid var(--paper-200)",
+          padding: "10px 16px",
+          background: "var(--paper-50)",
+          border: "1px solid var(--paper-200)",
+          borderRadius: 10,
           fontSize: 12.5,
         }}
       >
@@ -518,30 +537,68 @@ export default function DashboardPage() {
                   <span className="kanban-col-count">{statusDeals.length}</span>
                 </div>
                 <div className="kanban-cards">
-                  {statusDeals.map((deal) => (
-                    <a
-                      key={deal.id}
-                      href={`/deals/${deal.id}`}
-                      className="deal-card"
-                      style={{ borderLeftColor: STATUS_COLORS[status], display: "block" }}
-                    >
-                      <div className="deal-card-name">{deal.name}</div>
-                      <div className="deal-card-company">{companies[deal.company_id] || "—"}</div>
-                      <div className="deal-card-price mono">{formatPrice(deal.price)}</div>
-                      {(deal.expected_close_date || deal.expected_invoice_date) && (
-                        <div style={{ fontSize: 11, color: "var(--ink-400)", marginTop: 4 }}>
-                          {deal.expected_close_date && <span>Uzavření {formatDateShort(deal.expected_close_date)}</span>}
-                          {deal.expected_close_date && deal.expected_invoice_date && <span> · </span>}
-                          {deal.expected_invoice_date && <span>Fakturace {formatDateShort(deal.expected_invoice_date)}</span>}
+                  {statusDeals.map((deal) => {
+                    const companyName = companies[deal.company_id] || "—";
+                    const initial = companyName !== "—" ? companyName.charAt(0).toUpperCase() : "?";
+                    const domain = getDomain(companyWebsites[deal.company_id]);
+                    return (
+                      <a
+                        key={deal.id}
+                        href={`/deals/${deal.id}`}
+                        className="deal-card"
+                        style={{ borderLeftColor: STATUS_COLORS[status], display: "block" }}
+                      >
+                        <div className="deal-card-top">
+                          {domain ? (
+                            <>
+                              <img
+                                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                                alt=""
+                                className="deal-card-avatar-img"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                  e.target.nextElementSibling.style.display = "flex";
+                                }}
+                              />
+                              <span className="deal-card-avatar" style={{ display: "none" }}>
+                                {initial}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="deal-card-avatar">{initial}</span>
+                          )}
+                          <span className="deal-card-company">{companyName}</span>
                         </div>
-                      )}
-                      {deal.owner_user_id && usersById[deal.owner_user_id] && (
-                        <div style={{ fontSize: 11, color: "var(--ember-600)", marginTop: 3, fontWeight: 600 }}>
-                          👤 {usersById[deal.owner_user_id]}
-                        </div>
-                      )}
-                    </a>
-                  ))}
+                        <div className="deal-card-name">{deal.name}</div>
+                        <div className="deal-card-price mono">{formatPrice(deal.price)}</div>
+
+                        {(deal.expected_close_date || deal.expected_invoice_date || deal.owner_user_id) && (
+                          <div className="deal-card-meta">
+                            {deal.expected_close_date && (
+                              <div className="deal-card-meta-row">
+                                <span className="deal-card-meta-label">Uzavření</span>
+                                <span>{formatDateShort(deal.expected_close_date)}</span>
+                              </div>
+                            )}
+                            {deal.expected_invoice_date && (
+                              <div className="deal-card-meta-row">
+                                <span className="deal-card-meta-label">Fakturace</span>
+                                <span>{formatDateShort(deal.expected_invoice_date)}</span>
+                              </div>
+                            )}
+                            {deal.owner_user_id && usersById[deal.owner_user_id] && (
+                              <div className="deal-card-meta-row">
+                                <span className="deal-card-meta-label">Vlastník</span>
+                                <span style={{ color: "var(--ember-600)", fontWeight: 600 }}>
+                                  {usersById[deal.owner_user_id]}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </a>
+                    );
+                  })}
                   {statusDeals.length === 0 && (
                     <div style={{ fontSize: 12, color: "var(--ink-400)", padding: "8px 2px" }}>Žádné případy</div>
                   )}

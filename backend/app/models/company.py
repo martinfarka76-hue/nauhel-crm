@@ -14,6 +14,7 @@ class Company(Base):
     name = Column(String(255), nullable=False)
     ico = Column(String(20), nullable=True)
     dic = Column(String(20), nullable=True)
+    website = Column(String(255), nullable=True)
     address = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

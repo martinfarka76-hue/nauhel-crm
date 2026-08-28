@@ -8,6 +8,7 @@ class CompanyBase(BaseModel):
     name: str
     ico: Optional[str] = None
     dic: Optional[str] = None
+    website: Optional[str] = None
     address: Optional[str] = None
     notes: Optional[str] = None
 
@@ -20,6 +21,7 @@ class CompanyUpdate(BaseModel):
     name: Optional[str] = None
     ico: Optional[str] = None
     dic: Optional[str] = None
+    website: Optional[str] = None
     address: Optional[str] = None
     notes: Optional[str] = None
 

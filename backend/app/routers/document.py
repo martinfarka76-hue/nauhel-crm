@@ -41,6 +41,7 @@ def list_all_documents(
     document_type: Optional[DocumentType] = None,
     company_id: Optional[uuid.UUID] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Seznam všech dokumentů napříč všemi Deals - pro souhrnný přehled (nabídky/faktury/dodací listy)."""
     query = db.query(Document)
@@ -52,7 +53,9 @@ def list_all_documents(
 
 
 @router.get("/deals/{deal_id}/documents", response_model=list[DocumentOut])
-def list_documents_for_deal(deal_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_documents_for_deal(
+    deal_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     if not db.query(Deal).filter(Deal.id == deal_id).first():
         raise HTTPException(status_code=404, detail="Deal not found")
     return (

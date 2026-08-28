@@ -64,8 +64,8 @@ services:
     container_name: crm-frontend-admin
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:18080
-      NEXT_PUBLIC_PUBLIC_URL: http://localhost:18082
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL_PUBLIC:-http://localhost:18080}
+      NEXT_PUBLIC_PUBLIC_URL: ${NEXT_PUBLIC_PUBLIC_URL_PUBLIC:-http://localhost:18082}
     ports:
       - "127.0.0.1:18081:3000"
     volumes:
@@ -85,7 +85,7 @@ services:
     container_name: crm-frontend-public
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:18080
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL_PUBLIC:-http://localhost:18080}
     ports:
       - "127.0.0.1:18082:3000"
     volumes:
