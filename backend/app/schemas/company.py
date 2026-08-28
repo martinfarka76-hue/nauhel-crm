@@ -30,5 +30,6 @@ class CompanyOut(CompanyBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    idoklad_contact_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime

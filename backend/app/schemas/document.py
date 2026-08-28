@@ -31,6 +31,9 @@ class DocumentOut(BaseModel):
     confirmed_by_name: Optional[str] = None
     agreed_to_terms: bool = False
     amount: Optional[Decimal] = None
+    idoklad_invoice_id: Optional[int] = None
+    idoklad_invoice_number: Optional[str] = None
+    idoklad_pdf_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

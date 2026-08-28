@@ -46,6 +46,12 @@ class Document(Base):
     # dle deposit_percent kalkulace) a Finální faktura (zbytek ceny)
     amount = Column(Numeric(12, 2), nullable=True)
 
+    # Údaje o odpovídající faktuře v iDokladu (vyplní se po úspěšném
+    # vystavení - relevantní jen pro Zálohová faktura/Finální faktura)
+    idoklad_invoice_id = Column(Integer, nullable=True)
+    idoklad_invoice_number = Column(String(50), nullable=True)
+    idoklad_pdf_url = Column(String(500), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

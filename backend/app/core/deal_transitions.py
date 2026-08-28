@@ -24,6 +24,7 @@ from app.models.document import Document
 from app.models.calculation import Calculation
 from app.models.enums import DealStatus, DocumentType
 from app.core.customer_notifications import notify_customer_document_created
+from app.core.invoice_issuing import issue_idoklad_invoice_for_document
 
 
 # Stavy dosažitelné manuálně přes /transition endpoint (bez Ztraceno, to je vždy povoleno zvlášť)
@@ -155,6 +156,9 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
             amount=final_amount,
         )
         db.add(document)
+        db.commit()
+        db.refresh(document)
+        issue_idoklad_invoice_for_document(db, document, deal)
 
     deal.status = to_status
     db.commit()
@@ -196,8 +200,12 @@ def perform_esignature_confirmation(db: Session, deal: Deal) -> Deal:
         amount=deposit_amount,
     )
     db.add(document)
+    db.commit()
+    db.refresh(document)
 
     deal.status = DealStatus.ZALOHOVA_FAKTURA
     db.commit()
     db.refresh(deal)
+
+    issue_idoklad_invoice_for_document(db, document, deal)
     return deal

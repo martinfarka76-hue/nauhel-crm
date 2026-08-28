@@ -1360,6 +1360,20 @@ export default function DealDetailPage() {
                   d.amount != null && (
                     <div style={{ marginBottom: 6 }}>
                       Částka: <strong className="mono">{money(d.amount)}</strong>
+                      {d.idoklad_invoice_number && (
+                        <>
+                          {" · "}
+                          iDoklad č. <strong>{d.idoklad_invoice_number}</strong>
+                          {d.idoklad_pdf_url && (
+                            <>
+                              {" "}
+                              <a href={d.idoklad_pdf_url} target="_blank" rel="noopener noreferrer">
+                                (PDF)
+                              </a>
+                            </>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
 
