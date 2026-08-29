@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.wood_species import WoodSpecies
 from app.models.pricing_parameter import PricingParameter
 from app.models.notification import Notification
+from app.models.folder_sequence import FolderSequence
 from app.models.enums import DealStatus, DocumentType, UserRole, ItemCategory
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "WoodSpecies",
     "PricingParameter",
     "Notification",
+    "FolderSequence",
     "DealStatus",
     "DocumentType",
     "UserRole",

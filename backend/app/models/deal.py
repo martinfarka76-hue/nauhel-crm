@@ -30,6 +30,14 @@ class Deal(Base):
     expected_invoice_date = Column(Date, nullable=True)
     deposit_paid = Column(Boolean, nullable=False, default=False)
 
+    # SharePoint - odkaz na automaticky vytvořenou složku zakázky a ID
+    # podsložek pro automatické nahrávání dokumentů (Nabídka, Faktury)
+    sharepoint_folder_url = Column(String(500), nullable=True)
+    sharepoint_folder_id = Column(String(255), nullable=True)
+    sharepoint_drive_id = Column(String(255), nullable=True)
+    sharepoint_subfolder_nabidka_id = Column(String(255), nullable=True)
+    sharepoint_subfolder_fakturace_id = Column(String(255), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

@@ -25,6 +25,7 @@ from app.models.calculation import Calculation
 from app.models.enums import DealStatus, DocumentType
 from app.core.customer_notifications import notify_customer_document_created
 from app.core.invoice_issuing import issue_idoklad_invoice_for_document
+from app.core.deal_folder import create_sharepoint_folder_for_deal, sync_offer_pdf_to_sharepoint
 
 
 # Stavy dosažitelné manuálně přes /transition endpoint (bez Ztraceno, to je vždy povoleno zvlášť)
@@ -68,8 +69,12 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
             f"(buď je to automatický přechod přes webhook, nebo je nedefinovaný).",
         )
 
-    # Kvalifikovaný lead -> Nabídka: vyžaduje aktivní kalkulaci, vytváří Document
+    # Kvalifikovaný lead -> Nabídka: vyžaduje aktivní kalkulaci, vytváří Document.
+    # Zároveň vytvoří složku zakázky na SharePointu (podle šablony), pokud ji
+    # Deal ještě nemá - PDF nabídky se pak nahraje do její podsložky.
     if to_status == DealStatus.NABIDKA:
+        create_sharepoint_folder_for_deal(db, deal)
+
         active_calc = (
             db.query(Calculation)
             .filter(Calculation.deal_id == deal.id, Calculation.is_active.is_(True))
@@ -91,6 +96,7 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
         db.commit()
         db.refresh(document)
         notify_customer_document_created(db, document, deal)
+        sync_offer_pdf_to_sharepoint(db, document, deal)
 
     # Nabídka -> Objednávka: zaznamenej skutečné datum uzavření (přestává být
     # jen odhad zadaný uživatelem, "zamkne se" na dnešní datum). Vytváří
@@ -114,6 +120,7 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
         db.commit()
         db.refresh(document)
         notify_customer_document_created(db, document, deal)
+        sync_offer_pdf_to_sharepoint(db, document, deal)
 
     # Zálohová faktura -> Vyrobeno: vyžaduje zaplacenou zálohu, vytváří Dodací list
     if to_status == DealStatus.VYROBENO:

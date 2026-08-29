@@ -12,6 +12,11 @@ from app.core.dependencies import get_current_user
 from app.core.deal_transitions import perform_esignature_confirmation
 from app.core.ms_graph import send_email
 from app.core.customer_notifications import notify_customer_document_created
+from app.core.deal_folder import (
+    sync_offer_pdf_to_sharepoint,
+    sync_invoice_pdf_to_sharepoint,
+    create_sharepoint_folder_for_deal,
+)
 from app.models.document import Document
 from app.models.document_view import DocumentView
 from app.models.deal import Deal
@@ -93,9 +98,13 @@ def create_document(
     ):
         deal.status = DealStatus.NABIDKA
 
+    if payload.document_type == DocumentType.NABIDKA:
+        create_sharepoint_folder_for_deal(db, deal)
+
     db.commit()
     db.refresh(document)
     notify_customer_document_created(db, document, deal)
+    sync_offer_pdf_to_sharepoint(db, document, deal)
     return document
 
 
@@ -351,6 +360,11 @@ async def upload_invoice_pdf(
     document.invoice_pdf_filename = file_path.name
     db.commit()
     db.refresh(document)
+
+    deal = db.query(Deal).filter(Deal.id == document.deal_id).first()
+    if deal:
+        label = "zalohova-faktura" if document.document_type == DocumentType.ZALOHOVA_FAKTURA else "faktura"
+        sync_invoice_pdf_to_sharepoint(db, deal, document, f"{label}-{deal.name}.pdf", content)
     return document
 
 

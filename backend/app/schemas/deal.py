@@ -38,5 +38,6 @@ class DealOut(DealBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    sharepoint_folder_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime

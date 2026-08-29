@@ -630,6 +630,13 @@ export default function DealDetailPage() {
                 {users.find((u) => u.id === deal.owner_user_id)?.full_name || "—"}
               </strong>
             </span>
+            {deal.sharepoint_folder_url && (
+              <span>
+                <a href={deal.sharepoint_folder_url} target="_blank" rel="noopener noreferrer">
+                  📁 Otevřít složku na SharePointu
+                </a>
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
