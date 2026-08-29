@@ -52,6 +52,11 @@ class Document(Base):
     idoklad_invoice_number = Column(String(50), nullable=True)
     idoklad_pdf_url = Column(String(500), nullable=True)
 
+    # Ručně nahraná faktura (PDF) - dokud se iDoklad integrace znovu
+    # nezapne, faktury se vytváří ručně a nahrávají sem
+    invoice_pdf_filename = Column(String(255), nullable=True)
+    invoice_sent_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

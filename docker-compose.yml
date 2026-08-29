@@ -50,6 +50,7 @@ services:
     volumes:
       - ./backend:/app
       - ./data/uploads:/app/uploads
+      - ./data/invoices:/app/data/invoices
     depends_on:
       - postgres
       - redis

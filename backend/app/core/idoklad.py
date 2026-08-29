@@ -137,23 +137,48 @@ def create_issued_invoice(
         today = _dt.date.today()
         due_date = today + _dt.timedelta(days=14)
 
+        # iDoklad vyžaduje kompletně vyplněný objekt faktury (bez automatických
+        # výchozích hodnot pro spoustu detailních polí) - proto si nejdřív
+        # stáhneme "výchozí" šablonu z účtu (měna, číselná řada, způsob platby...)
+        # a jen v ní přepíšeme to, co potřebujeme.
+        default_resp = httpx.get(f"{API_BASE}/IssuedInvoices/Default", headers=_headers(), timeout=15.0)
+        if default_resp.status_code >= 400:
+            logger.error(
+                "iDoklad: GET /IssuedInvoices/Default selhalo (%s): %s",
+                default_resp.status_code,
+                default_resp.text,
+            )
+        default_resp.raise_for_status()
+        default_json = default_resp.json()
+        payload = default_json.get("Data") if isinstance(default_json.get("Data"), dict) else default_json
+
         vat_rate_percent = round(float(vat_rate) * 100)
-        payload = {
-            "PurchaserId": purchaser_id,
-            "Description": item_name,
-            "DateOfIssue": today.isoformat(),
-            "DateOfTaxing": today.isoformat(),
-            "DateOfMaturity": due_date.isoformat(),
-            "Items": [
-                {
-                    "Name": item_name,
-                    "Amount": 1,
-                    "UnitPrice": amount,
-                    "PriceType": 1,  # 1 = cena s DPH (dle konvence iDoklad - ověřit při testu)
-                    "VatRatePercent": vat_rate_percent,
-                }
-            ],
-        }
+
+        # Vezmi výchozí šablonu položky (pokud existuje), jinak prázdný slovník,
+        # a přepiš jen to, co potřebujeme - zachová ostatní povinná pole se
+        # svými výchozími hodnotami (DiscountPercentage, IsTaxMovement, ...)
+        default_items = payload.get("Items") or []
+        item_template = dict(default_items[0]) if default_items else {}
+        item_template.update(
+            {
+                "Name": item_name,
+                "Amount": 1,
+                "UnitPrice": amount,
+                "PriceType": 1,  # 1 = cena s DPH (dle konvence iDoklad - ověřit při testu)
+                "VatRatePercent": vat_rate_percent,
+            }
+        )
+
+        payload.update(
+            {
+                "PurchaserId": purchaser_id,
+                "Description": item_name,
+                "DateOfIssue": today.isoformat(),
+                "DateOfTaxing": today.isoformat(),
+                "DateOfMaturity": due_date.isoformat(),
+                "Items": [item_template],
+            }
+        )
         resp = httpx.post(f"{API_BASE}/IssuedInvoices", json=payload, headers=_headers(), timeout=15.0)
         if resp.status_code >= 400:
             logger.error("iDoklad: POST /IssuedInvoices selhalo (%s): %s", resp.status_code, resp.text)

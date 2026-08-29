@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { STATUS_COLORS, NEXT_MANUAL_STATUS } from "@/lib/constants";
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
 const CATEGORIES = ["Materiál", "Práce", "Doprava", "Ostatní"];
 const PRODUCT_LINES = ["Atacama", "Mirage", "Ocaso"];
 
@@ -75,6 +76,8 @@ export default function DealDetailPage() {
   const [documentViews, setDocumentViews] = useState({});
   const [expandedDoc, setExpandedDoc] = useState(null);
   const [copiedDoc, setCopiedDoc] = useState(null);
+  const [uploadingInvoiceId, setUploadingInvoiceId] = useState(null);
+  const [sendingInvoiceId, setSendingInvoiceId] = useState(null);
   const [error, setError] = useState("");
   const [transitioning, setTransitioning] = useState(false);
 
@@ -152,6 +155,67 @@ export default function DealDetailPage() {
       setCopiedDoc(docId);
       setTimeout(() => setCopiedDoc(null), 2000);
     });
+  }
+
+  function getAuthToken() {
+    return typeof window !== "undefined" ? localStorage.getItem("nauhel_token") : null;
+  }
+
+  async function handleUploadInvoice(documentId, file) {
+    if (!file) return;
+    setUploadingInvoiceId(documentId);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${API_URL}/documents/${documentId}/invoice-pdf`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Nahrání faktury selhalo.");
+      }
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingInvoiceId(null);
+    }
+  }
+
+  async function handleDownloadInvoice(documentId) {
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/documents/${documentId}/invoice-pdf`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+      if (!res.ok) throw new Error("Stažení faktury selhalo.");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "faktura.pdf";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleSendInvoiceEmail(documentId) {
+    if (!window.confirm("Odeslat fakturu zákazníkovi emailem (odkaz + PDF příloha)?")) return;
+    setSendingInvoiceId(documentId);
+    setError("");
+    try {
+      await api.post(`/documents/${documentId}/send-invoice-email`, {});
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSendingInvoiceId(null);
+    }
   }
 
   async function handleToggleViews(docId) {
@@ -1376,6 +1440,53 @@ export default function DealDetailPage() {
                       )}
                     </div>
                   )}
+
+                {(d.document_type === "Zálohová faktura" || d.document_type === "Finální faktura") && (
+                  <div style={{ marginBottom: 6 }}>
+                    {!d.invoice_pdf_filename ? (
+                      <>
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          id={`invoice-upload-${d.id}`}
+                          style={{ display: "none" }}
+                          onChange={(e) => handleUploadInvoice(d.id, e.target.files[0])}
+                        />
+                        <label
+                          htmlFor={`invoice-upload-${d.id}`}
+                          className="btn btn-secondary"
+                          style={{ padding: "5px 10px", fontSize: 12.5, cursor: "pointer", display: "inline-block" }}
+                        >
+                          {uploadingInvoiceId === d.id ? "Nahrávám…" : "Nahrát fakturu (PDF)"}
+                        </label>
+                      </>
+                    ) : (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: "5px 10px", fontSize: 12.5 }}
+                          onClick={() => handleDownloadInvoice(d.id)}
+                        >
+                          Stáhnout fakturu
+                        </button>
+                        {!d.invoice_sent_at ? (
+                          <button
+                            className="btn btn-primary"
+                            style={{ padding: "5px 10px", fontSize: 12.5 }}
+                            onClick={() => handleSendInvoiceEmail(d.id)}
+                            disabled={sendingInvoiceId === d.id}
+                          >
+                            {sendingInvoiceId === d.id ? "Odesílám…" : "Odeslat zákazníkovi"}
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 12, color: "var(--ink-600)" }}>
+                            ✓ Odesláno {formatDate(d.invoice_sent_at)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {(d.document_type === "Nabídka" || d.document_type === "Objednávka") && (
                   <>

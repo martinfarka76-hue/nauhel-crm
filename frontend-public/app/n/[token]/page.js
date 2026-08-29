@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { fetchPublicDocument, sendViewDuration } from "@/lib/api";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
+
 function formatMoney(value) {
   if (value === null || value === undefined) return "—";
   return Number(value).toLocaleString("cs-CZ") + " Kč";
@@ -272,6 +274,40 @@ export default function PublicOfferPage() {
           )}
         </div>
       )}
+
+      {(offer.document_type === "Zálohová faktura" || offer.document_type === "Finální faktura") &&
+        offer.has_invoice_pdf && (
+          <div
+            style={{
+              border: "1px solid var(--paper-200)",
+              borderRadius: 12,
+              padding: "22px 28px",
+              marginBottom: 20,
+              textAlign: "center",
+              background: "#fff",
+            }}
+          >
+            <div style={{ fontSize: 13.5, color: "var(--ink-600)", marginBottom: 14 }}>
+              {offer.document_type} k zakázce „{offer.deal_name}“
+            </div>
+            <a
+              href={`${API_URL}/public/documents/${token}/invoice-pdf`}
+              style={{
+                display: "inline-block",
+                background: "var(--ember-500)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "12px 28px",
+                fontSize: 14.5,
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              Stáhnout fakturu (PDF)
+            </a>
+          </div>
+        )}
 
       <div className="offer-card">
         <div className="offer-card-band" />

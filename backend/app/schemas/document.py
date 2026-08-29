@@ -34,6 +34,8 @@ class DocumentOut(BaseModel):
     idoklad_invoice_id: Optional[int] = None
     idoklad_invoice_number: Optional[str] = None
     idoklad_pdf_url: Optional[str] = None
+    invoice_pdf_filename: Optional[str] = None
+    invoice_sent_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -83,6 +85,7 @@ class DocumentPublicOut(BaseModel):
     company_address: Optional[str] = None
     deal_name: str
     calculation: Optional[CalculationPublicOut] = None
+    has_invoice_pdf: bool = False
 
 
 class DocumentConfirmRequest(BaseModel):

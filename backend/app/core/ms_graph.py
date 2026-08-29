@@ -55,34 +55,53 @@ def _get_access_token() -> str:
     return _token_cache["access_token"]
 
 
-def send_email(to_email: str, subject: str, body_html: str) -> bool:
+def send_email(
+    to_email: str,
+    subject: str,
+    body_html: str,
+    attachments: list[dict] | None = None,
+) -> bool:
     """
     Pošle email přes MS Graph. Vrací True při úspěchu, False při selhání
     nebo pokud integrace ještě není nakonfigurovaná. Nikdy nevyhazuje
     výjimku ven - volající kód (např. potvrzení objednávky) má fungovat
     normálně i když odeslání emailu selže.
+
+    attachments: volitelný seznam příloh, každá jako
+      {"name": "faktura.pdf", "content_type": "application/pdf", "content_bytes": b"..."}
+    kde content_bytes jsou syrové bajty souboru (zakódují se do base64 zde).
     """
     if not _is_configured():
         logger.info("MS Graph není nakonfigurován - email se neodesílá (%s)", subject)
         return False
 
     try:
+        import base64
+
         token = _get_access_token()
         sender = os.environ["MS_GRAPH_SENDER_EMAIL"]
         url = f"https://graph.microsoft.com/v1.0/users/{sender}/sendMail"
-        payload = {
-            "message": {
-                "subject": subject,
-                "body": {"contentType": "HTML", "content": body_html},
-                "toRecipients": [{"emailAddress": {"address": to_email}}],
-            },
-            "saveToSentItems": True,
+        message = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": body_html},
+            "toRecipients": [{"emailAddress": {"address": to_email}}],
         }
+        if attachments:
+            message["attachments"] = [
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": a["name"],
+                    "contentType": a.get("content_type", "application/octet-stream"),
+                    "contentBytes": base64.b64encode(a["content_bytes"]).decode("ascii"),
+                }
+                for a in attachments
+            ]
+        payload = {"message": message, "saveToSentItems": True}
         resp = httpx.post(
             url,
             json=payload,
             headers={"Authorization": f"Bearer {token}"},
-            timeout=15.0,
+            timeout=30.0,
         )
         resp.raise_for_status()
         logger.info("Email odeslán přes MS Graph: %s -> %s", subject, to_email)

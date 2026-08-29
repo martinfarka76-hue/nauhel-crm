@@ -1,8 +1,10 @@
 import uuid
 import os
+from pathlib import Path
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -14,6 +16,7 @@ from app.models.document import Document
 from app.models.document_view import DocumentView
 from app.models.deal import Deal
 from app.models.company import Company
+from app.models.contact import Contact
 from app.models.calculation import Calculation
 from app.models.user import User
 from app.models.enums import DocumentType, DealStatus
@@ -185,6 +188,7 @@ def view_public_document(access_token: str, request: Request, db: Session = Depe
         company_address=company.address,
         deal_name=deal.name,
         calculation=calculation_public,
+        has_invoice_pdf=bool(document.invoice_pdf_filename),
     )
 
     # Zaloguj zobrazení - IP z requestu (za reverse proxy by šlo číst X-Forwarded-For,
@@ -308,3 +312,135 @@ def confirm_document(access_token: str, payload: DocumentConfirmRequest, db: Ses
         confirmed_at=document.confirmed_at,
         confirmed_by_name=document.confirmed_by_name,
     )
+
+
+# --- Ruční nahrávání faktur (PDF) - dokud iDoklad integrace není znovu ---
+# --- zapnutá, faktury se vystavují ručně a nahrávají se sem            ---
+
+INVOICE_STORAGE_DIR = Path("/app/data/invoices")
+
+
+def _invoice_file_path(document_id: uuid.UUID) -> Path:
+    return INVOICE_STORAGE_DIR / f"{document_id}.pdf"
+
+
+@router.post("/documents/{document_id}/invoice-pdf", response_model=DocumentOut)
+async def upload_invoice_pdf(
+    document_id: uuid.UUID,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Nahraje PDF fakturu (ručně vystavenou např. v iDokladu) k dokumentu."""
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if document.document_type not in (DocumentType.ZALOHOVA_FAKTURA, DocumentType.FINALNI_FAKTURA):
+        raise HTTPException(
+            status_code=400,
+            detail="Fakturu lze nahrát jen k dokumentu typu Zálohová faktura nebo Finální faktura.",
+        )
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=422, detail="Nahraný soubor musí být PDF.")
+
+    INVOICE_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    file_path = _invoice_file_path(document_id)
+    content = await file.read()
+    file_path.write_bytes(content)
+
+    document.invoice_pdf_filename = file_path.name
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+@router.get("/documents/{document_id}/invoice-pdf")
+def download_invoice_pdf(
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Stažení nahrané faktury - interní, vyžaduje přihlášení."""
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document or not document.invoice_pdf_filename:
+        raise HTTPException(status_code=404, detail="Invoice PDF not found")
+    file_path = _invoice_file_path(document_id)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Invoice PDF file missing on disk")
+    return FileResponse(file_path, media_type="application/pdf", filename=file_path.name)
+
+
+@router.get("/public/documents/{access_token}/invoice-pdf")
+def download_invoice_pdf_public(access_token: str, db: Session = Depends(get_db)):
+    """Stažení nahrané faktury - veřejné, chráněné jen náhodným tokenem v odkazu."""
+    document = db.query(Document).filter(Document.access_token == access_token).first()
+    if not document or not document.invoice_pdf_filename:
+        raise HTTPException(status_code=404, detail="Invoice PDF not found")
+    file_path = _invoice_file_path(document.id)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Invoice PDF file missing on disk")
+    return FileResponse(file_path, media_type="application/pdf", filename=file_path.name)
+
+
+@router.post("/documents/{document_id}/send-invoice-email", response_model=DocumentOut)
+def send_invoice_email(
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Pošle zákazníkovi email s odkazem na fakturu a přiloženým PDF. Vyžaduje,
+    aby už byla faktura nahraná, a aby měl Deal přiřazený kontakt s emailem.
+    """
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not document.invoice_pdf_filename:
+        raise HTTPException(status_code=400, detail="K dokumentu ještě není nahraná žádná faktura.")
+
+    deal = db.query(Deal).filter(Deal.id == document.deal_id).first()
+    if not deal or not deal.contact_id:
+        raise HTTPException(status_code=400, detail="Deal nemá přiřazený odpovědný kontakt.")
+
+    contact = db.query(Contact).filter(Contact.id == deal.contact_id).first()
+    if not contact or not contact.email:
+        raise HTTPException(status_code=400, detail="Odpovědný kontakt nemá vyplněný email.")
+
+    company = db.query(Company).filter(Company.id == deal.company_id).first()
+    company_note = f" pro firmu {company.name}" if company else ""
+
+    public_base_url = os.environ.get("PUBLIC_BASE_URL", "http://localhost:18082")
+    link = f"{public_base_url}/n/{document.access_token}"
+
+    label = "Zálohová faktura" if document.document_type == DocumentType.ZALOHOVA_FAKTURA else "Faktura"
+    subject = f"{label} - {deal.name}"
+    body_html = (
+        f"<p>Dobrý den {contact.first_name},</p>"
+        f"<p>zasíláme Vám {label.lower()} k zakázce „{deal.name}“{company_note}, "
+        f"v příloze i na odkazu níže.</p>"
+        f'<p><a href="{link}">Zobrazit fakturu online</a></p>'
+        f"<p>NAUHEL s.r.o. · Ve Mlejnku 108, 257 65 Čechtice<br>telefon: 605 457 927</p>"
+    )
+
+    file_path = _invoice_file_path(document_id)
+    attachments = None
+    if file_path.exists():
+        attachments = [
+            {
+                "name": f"faktura-{deal.name}.pdf",
+                "content_type": "application/pdf",
+                "content_bytes": file_path.read_bytes(),
+            }
+        ]
+
+    sent = send_email(contact.email, subject, body_html, attachments=attachments)
+    if not sent:
+        raise HTTPException(
+            status_code=502,
+            detail="Odeslání emailu selhalo - zkontroluj konfiguraci MS Graph nebo logy backendu.",
+        )
+
+    document.invoice_sent_at = datetime.utcnow()
+    db.commit()
+    db.refresh(document)
+    return document

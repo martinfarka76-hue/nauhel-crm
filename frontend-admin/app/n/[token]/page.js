@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { fetchPublicDocument, sendViewDuration } from "@/lib/api";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
+
 function formatMoney(value) {
   if (value === null || value === undefined) return "—";
   return Number(value).toLocaleString("cs-CZ") + " Kč";
@@ -28,6 +30,11 @@ export default function PublicOfferPage() {
   const { token } = useParams();
   const [state, setState] = useState("loading"); // loading | ready | not_found | error
   const [offer, setOffer] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState("");
+  const [confirmName, setConfirmName] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const VOP_URL = process.env.NEXT_PUBLIC_VOP_URL || "https://www.nauhel.cz/vop";
   const viewIdRef = useRef(null);
   const startTimeRef = useRef(null);
 
@@ -98,6 +105,50 @@ export default function PublicOfferPage() {
 
   const calc = offer.calculation;
 
+  function subtotalForCategory(category) {
+    if (!calc || !calc.items) return 0;
+    return calc.items
+      .filter((it) => it.category === category)
+      .reduce((sum, it) => sum + Number(it.quantity) * Number(it.unit_price), 0);
+  }
+
+  const materialSubtotal = subtotalForCategory("Materiál");
+  const installationSubtotal = subtotalForCategory("Práce");
+  const materialDiscountAmount = calc
+    ? (materialSubtotal * Number(calc.discount_material_percent || 0)) / 100
+    : 0;
+  const installationDiscountAmount = calc
+    ? (installationSubtotal * Number(calc.discount_installation_percent || 0)) / 100
+    : 0;
+
+  async function handleConfirmOrder() {
+    if (!confirmName.trim()) {
+      setConfirmError("Prosím vyplňte své celé jméno.");
+      return;
+    }
+    if (!agreedToTerms) {
+      setConfirmError("Je potřeba potvrdit souhlas se Všeobecnými obchodními podmínkami.");
+      return;
+    }
+    setConfirming(true);
+    setConfirmError("");
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
+      const res = await fetch(`${API_URL}/public/documents/${token}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmed_by_name: confirmName.trim(), agreed_to_terms: true }),
+      });
+      if (!res.ok) throw new Error("Potvrzení se nezdařilo, zkuste to prosím znovu.");
+      const data = await res.json();
+      setOffer((prev) => ({ ...prev, confirmed_at: data.confirmed_at, confirmed_by_name: data.confirmed_by_name }));
+    } catch (err) {
+      setConfirmError(err.message);
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   return (
     <div className="offer-shell">
       <div className="offer-header">
@@ -119,27 +170,170 @@ export default function PublicOfferPage() {
         )}
       </div>
 
+      {offer.document_type === "Objednávka" && (
+        <div
+          style={{
+            border: offer.confirmed_at ? "2px solid var(--success, #3d7a4f)" : "2px solid var(--ember-500)",
+            background: offer.confirmed_at ? "#f0f7f2" : "#fdf3ec",
+            borderRadius: 12,
+            padding: "22px 28px",
+            marginBottom: 20,
+            textAlign: "center",
+          }}
+        >
+          {offer.confirmed_at ? (
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: "var(--success, #3d7a4f)", marginBottom: 4 }}>
+                ✓ Objednávka potvrzena
+              </div>
+              <div style={{ fontSize: 13, color: "var(--ink-600)" }}>
+                Potvrdil(a) {offer.confirmed_by_name} dne {formatDate(offer.confirmed_at)}. Děkujeme, brzy
+                se vám ozveme s dalšími kroky.
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--ember-600, #9c5424)", marginBottom: 8 }}>
+                ⚠ Vyžaduje vaše potvrzení
+              </div>
+              <div style={{ fontSize: 13.5, color: "var(--ink-600)", marginBottom: 14 }}>
+                Vyplňte prosím své celé jméno a kliknutím na tlačítko níže elektronicky potvrďte
+                tuto objednávku.
+              </div>
+              <input
+                type="text"
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                placeholder="Celé jméno"
+                style={{
+                  width: "100%",
+                  maxWidth: 300,
+                  padding: "10px 14px",
+                  fontSize: 14.5,
+                  border: "1px solid var(--line)",
+                  borderRadius: 8,
+                  marginBottom: 14,
+                  textAlign: "center",
+                }}
+              />
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  maxWidth: 340,
+                  margin: "0 auto 16px",
+                  fontSize: 12.5,
+                  color: "var(--ink-600)",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                />
+                <span>
+                  Souhlasím se{" "}
+                  <a
+                    href={VOP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--ember-600, #9c5424)", textDecoration: "underline" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Všeobecnými obchodními podmínkami
+                  </a>{" "}
+                  společnosti NAUHEL s.r.o.
+                </span>
+              </label>
+              <div>
+                <button
+                  onClick={handleConfirmOrder}
+                  disabled={confirming}
+                  style={{
+                    background: "var(--ember-500)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "13px 32px",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: confirming ? "default" : "pointer",
+                  }}
+                >
+                  {confirming ? "Potvrzuji…" : "Potvrdit objednávku"}
+                </button>
+              </div>
+              {confirmError && (
+                <div style={{ marginTop: 10, fontSize: 12.5, color: "#a13d3d" }}>{confirmError}</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {(offer.document_type === "Zálohová faktura" || offer.document_type === "Finální faktura") &&
+        offer.has_invoice_pdf && (
+          <div
+            style={{
+              border: "1px solid var(--paper-200)",
+              borderRadius: 12,
+              padding: "22px 28px",
+              marginBottom: 20,
+              textAlign: "center",
+              background: "#fff",
+            }}
+          >
+            <div style={{ fontSize: 13.5, color: "var(--ink-600)", marginBottom: 14 }}>
+              {offer.document_type} k zakázce „{offer.deal_name}“
+            </div>
+            <a
+              href={`${API_URL}/public/documents/${token}/invoice-pdf`}
+              style={{
+                display: "inline-block",
+                background: "var(--ember-500)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "12px 28px",
+                fontSize: 14.5,
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              Stáhnout fakturu (PDF)
+            </a>
+          </div>
+        )}
+
       <div className="offer-card">
         <div className="offer-card-band" />
         <div className="offer-card-body">
           {calc ? (
             <>
-              {calc.product_line && (
-                <div className="offer-row">
-                  <span className="offer-row-label">Produktová řada</span>
-                  <span className="offer-row-value">{calc.product_line}</span>
-                </div>
-              )}
-              {calc.wood_species && (
-                <div className="offer-row">
-                  <span className="offer-row-label">Dřevina</span>
-                  <span className="offer-row-value">{calc.wood_species}</span>
-                </div>
-              )}
-              {calc.area_m2 && (
-                <div className="offer-row">
-                  <span className="offer-row-label">Plocha fasády</span>
-                  <span className="offer-row-value mono">{Number(calc.area_m2)} m²</span>
+              {(calc.product_line || calc.wood_species || calc.area_m2) && (
+                <div className="offer-stats">
+                  {calc.product_line && (
+                    <div className="offer-stat">
+                      <div className="offer-stat-label">Produktová řada</div>
+                      <div className="offer-stat-value">{calc.product_line}</div>
+                    </div>
+                  )}
+                  {calc.wood_species && (
+                    <div className="offer-stat">
+                      <div className="offer-stat-label">Dřevina</div>
+                      <div className="offer-stat-value">{calc.wood_species}</div>
+                    </div>
+                  )}
+                  {calc.area_m2 && (
+                    <div className="offer-stat">
+                      <div className="offer-stat-label">Plocha fasády</div>
+                      <div className="offer-stat-value mono">{Number(calc.area_m2)} m²</div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -178,10 +372,16 @@ export default function PublicOfferPage() {
               {(Number(calc.discount_material_percent) > 0 || Number(calc.discount_installation_percent) > 0) && (
                 <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 8 }}>
                   {Number(calc.discount_material_percent) > 0 && (
-                    <div>Sleva na materiál: {Number(calc.discount_material_percent)} %</div>
+                    <div>
+                      Sleva na materiál: {Number(calc.discount_material_percent)} %
+                      {" "}(−{formatMoney(materialDiscountAmount)})
+                    </div>
                   )}
                   {Number(calc.discount_installation_percent) > 0 && (
-                    <div>Sleva na montáž: {Number(calc.discount_installation_percent)} %</div>
+                    <div>
+                      Sleva na montáž: {Number(calc.discount_installation_percent)} %
+                      {" "}(−{formatMoney(installationDiscountAmount)})
+                    </div>
                   )}
                 </div>
               )}
