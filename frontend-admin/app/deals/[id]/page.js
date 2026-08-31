@@ -78,6 +78,8 @@ export default function DealDetailPage() {
   const [copiedDoc, setCopiedDoc] = useState(null);
   const [uploadingInvoiceId, setUploadingInvoiceId] = useState(null);
   const [sendingInvoiceId, setSendingInvoiceId] = useState(null);
+  const [attachments, setAttachments] = useState([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [error, setError] = useState("");
   const [transitioning, setTransitioning] = useState(false);
 
@@ -118,14 +120,16 @@ export default function DealDetailPage() {
           api.get(`/users`),
           api.get(`/deals/${id}/calculations`),
           api.get(`/deals/${id}/documents`),
+          api.get(`/deals/${id}/attachments`),
         ]);
       })
-      .then(async ([c, dealContacts, usersData, calcs, docs]) => {
+      .then(async ([c, dealContacts, usersData, calcs, docs, attachmentsData]) => {
         setCompany(c);
         setCompanyContacts(dealContacts);
         setUsers(usersData);
         setCalculations(calcs);
         setDocuments(docs);
+        setAttachments(attachmentsData);
         const itemsEntries = await Promise.all(
           calcs.map(async (calc) => [calc.id, await api.get(`/calculations/${calc.id}/items`)])
         );
@@ -215,6 +219,59 @@ export default function DealDetailPage() {
       setError(err.message);
     } finally {
       setSendingInvoiceId(null);
+    }
+  }
+
+  async function handleUploadAttachment(file) {
+    setUploadingAttachment(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${API_URL}/deals/${id}/attachments`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Nahrání přílohy selhalo.");
+      }
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingAttachment(false);
+    }
+  }
+
+  async function handleDownloadAttachment(attachmentId, filename) {
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/attachments/${attachmentId}/download`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+      if (!res.ok) throw new Error("Stažení přílohy selhalo.");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || "priloha";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDeleteAttachment(attachmentId) {
+    if (!window.confirm("Smazat tuto přílohu? (Tato akce je nevratná v CRM, soubor na SharePointu zůstane.)")) return;
+    setError("");
+    try {
+      await api.delete(`/attachments/${attachmentId}`);
+      loadAll();
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -1362,6 +1419,67 @@ export default function DealDetailPage() {
               </div>
             );
           })
+        )}
+      </div>
+
+      {/* --- Poptávka / Dokumentace --- */}
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontWeight: 600 }}>Poptávka / Dokumentace</div>
+          <div>
+            <input
+              type="file"
+              id="attachment-upload"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files[0]) handleUploadAttachment(e.target.files[0]);
+                e.target.value = "";
+              }}
+            />
+            <label
+              htmlFor="attachment-upload"
+              className="btn btn-secondary"
+              style={{ padding: "4px 10px", fontSize: 12.5, cursor: "pointer", display: "inline-block" }}
+            >
+              {uploadingAttachment ? "Nahrávám…" : "+ Nahrát soubor (výkres, dokumentace)"}
+            </label>
+          </div>
+        </div>
+        {attachments.length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné přílohy</div>
+        ) : (
+          attachments.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "8px 0",
+                borderBottom: "1px solid var(--paper-200)",
+                fontSize: 13,
+              }}
+            >
+              <span>{a.original_filename}</span>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <span style={{ fontSize: 11.5, color: "var(--ink-400)" }}>{formatDate(a.uploaded_at)}</span>
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: "3px 8px", fontSize: 11.5 }}
+                  onClick={() => handleDownloadAttachment(a.id, a.original_filename)}
+                >
+                  Stáhnout
+                </button>
+                <button
+                  className="btn btn-danger"
+                  style={{ padding: "3px 8px", fontSize: 11.5 }}
+                  onClick={() => handleDeleteAttachment(a.id)}
+                >
+                  Smazat
+                </button>
+              </div>
+            </div>
+          ))
         )}
       </div>
 

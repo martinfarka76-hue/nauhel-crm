@@ -175,6 +175,7 @@ def create_deal_folder(folder_name: str) -> dict | None:
             "folder_id": folder_id,
             "web_url": web_url,
             "drive_id": drive_id,
+            "poptavka_subfolder_id": subfolder_ids.get("01_Poptávka"),
             "nabidka_subfolder_id": subfolder_ids.get("02_Nabídka"),
             "fakturace_subfolder_id": subfolder_ids.get("04_Fakturace"),
         }

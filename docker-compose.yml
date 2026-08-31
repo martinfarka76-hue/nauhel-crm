@@ -51,6 +51,7 @@ services:
       - ./backend:/app
       - ./data/uploads:/app/uploads
       - ./data/invoices:/app/data/invoices
+      - ./data/attachments:/app/data/attachments
     depends_on:
       - postgres
       - redis

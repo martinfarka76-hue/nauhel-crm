@@ -37,6 +37,7 @@ class Deal(Base):
     sharepoint_drive_id = Column(String(255), nullable=True)
     sharepoint_subfolder_nabidka_id = Column(String(255), nullable=True)
     sharepoint_subfolder_fakturace_id = Column(String(255), nullable=True)
+    sharepoint_subfolder_poptavka_id = Column(String(255), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

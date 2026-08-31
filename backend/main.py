@@ -11,6 +11,7 @@ from app import models  # noqa: F401 - zajišťuje registraci modelů
 from app.routers import (
     company, contact, deal, auth, calculation, document, webhooks, ares,
     stage_config, wood_species, pricing_parameter, user, notification,
+    deal_attachment,
 )
 from app.core.scheduler import start_scheduler
 from app.core.seed_data import seed_stage_config, seed_pricing_parameters, seed_wood_species
@@ -87,6 +88,7 @@ app.include_router(wood_species.router)
 app.include_router(pricing_parameter.router)
 app.include_router(user.router)
 app.include_router(notification.router)
+app.include_router(deal_attachment.router)
 
 
 @app.get("/")

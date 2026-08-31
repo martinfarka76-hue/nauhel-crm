@@ -8,7 +8,7 @@ import datetime as _dt
 from sqlalchemy.orm import Session
 
 from app.core import sharepoint
-from app.core.folder_sequence import get_next_folder_number
+from app.core.folder_sequence import peek_next_folder_number, confirm_folder_number_used
 from app.core.offer_pdf import generate_offer_pdf
 from app.models.deal import Deal
 from app.models.document import Document
@@ -33,18 +33,21 @@ def create_sharepoint_folder_for_deal(db: Session, deal: Deal) -> None:
         return
 
     year = _dt.date.today().year
-    number = get_next_folder_number(db, year)
+    number = peek_next_folder_number(db, year)
     folder_name = f"{year}_{number:03d}_{deal.name}"
 
     result = sharepoint.create_deal_folder(folder_name)
     if not result:
         return
 
+    confirm_folder_number_used(db, year)
+
     deal.sharepoint_folder_url = result.get("web_url")
     deal.sharepoint_folder_id = result.get("folder_id")
     deal.sharepoint_drive_id = result.get("drive_id")
     deal.sharepoint_subfolder_nabidka_id = result.get("nabidka_subfolder_id")
     deal.sharepoint_subfolder_fakturace_id = result.get("fakturace_subfolder_id")
+    deal.sharepoint_subfolder_poptavka_id = result.get("poptavka_subfolder_id")
 
     notification = Notification(
         notification_type="sharepoint_folder_created",
@@ -108,6 +111,23 @@ def sync_invoice_pdf_to_sharepoint(db: Session, deal: Deal, document: Document, 
             message=f"{document.document_type} nahrána na SharePoint - případ „{deal.name}“.",
             deal_id=deal.id,
             document_id=document.id,
+        )
+        db.add(notification)
+        db.commit()
+
+
+def sync_attachment_to_sharepoint(db: Session, deal: Deal, filename: str, content_bytes: bytes) -> None:
+    """Nahraje přílohu k poptávce (výkres, dokumentace) do podsložky 01_Poptávka."""
+    if not deal.sharepoint_drive_id or not deal.sharepoint_subfolder_poptavka_id:
+        return
+    uploaded = sharepoint.upload_file_to_folder(
+        deal.sharepoint_drive_id, deal.sharepoint_subfolder_poptavka_id, filename, content_bytes
+    )
+    if uploaded:
+        notification = Notification(
+            notification_type="sharepoint_document_synced",
+            message=f"Příloha „{filename}“ nahrána na SharePoint - případ „{deal.name}“.",
+            deal_id=deal.id,
         )
         db.add(notification)
         db.commit()
