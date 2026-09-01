@@ -13,6 +13,61 @@ function formatDate(iso) {
   return new Date(utcIso).toLocaleString("cs-CZ");
 }
 
+function getDomain(url) {
+  if (!url) return null;
+  try {
+    let u = url.trim();
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    return new URL(u).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+function CompanyAvatar({ name, website }) {
+  const domain = getDomain(website);
+  const initial = name ? name.charAt(0).toUpperCase() : "?";
+  const [imgFailed, setImgFailed] = useState(false);
+
+  if (domain && !imgFailed) {
+    return (
+      <img
+        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+        alt=""
+        onError={() => setImgFailed(true)}
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          flexShrink: 0,
+          objectFit: "cover",
+          background: "var(--paper-100)",
+          border: "1px solid var(--paper-200)",
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      style={{
+        width: 20,
+        height: 20,
+        borderRadius: "50%",
+        flexShrink: 0,
+        background: "var(--ember-500)",
+        color: "#fff",
+        fontSize: 9.5,
+        fontWeight: 700,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {initial}
+    </span>
+  );
+}
+
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
   const [deals, setDeals] = useState({});
@@ -32,7 +87,7 @@ export default function DocumentsPage() {
         dealsData.forEach((d) => (dealsMap[d.id] = d));
         setDeals(dealsMap);
         const companiesMap = {};
-        companiesData.forEach((c) => (companiesMap[c.id] = c.name));
+        companiesData.forEach((c) => (companiesMap[c.id] = c));
         setCompanies(companiesMap);
       })
       .catch((err) => setError(err.message))
@@ -49,10 +104,10 @@ export default function DocumentsPage() {
     });
   }
 
-  function companyNameForDeal(dealId) {
+  function companyForDeal(dealId) {
     const deal = deals[dealId];
-    if (!deal) return "—";
-    return companies[deal.company_id] || "—";
+    if (!deal) return null;
+    return companies[deal.company_id] || null;
   }
 
   return (
@@ -95,15 +150,20 @@ export default function DocumentsPage() {
           <tbody>
             {documents.map((doc) => {
               const deal = deals[doc.deal_id];
+              const company = companyForDeal(doc.deal_id);
               return (
                 <tr key={doc.id}>
                   <td style={{ fontWeight: 600 }}>
                     {doc.document_type} {doc.version > 1 ? `(v${doc.version})` : ""}
                   </td>
                   <td>
-                    {deals[doc.deal_id] ? (
-                      <a href={`/companies/${deals[doc.deal_id].company_id}`} style={{ textDecoration: "underline" }}>
-                        {companyNameForDeal(doc.deal_id)}
+                    {company ? (
+                      <a
+                        href={`/companies/${company.id}`}
+                        style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "underline" }}
+                      >
+                        <CompanyAvatar name={company.name} website={company.website} />
+                        {company.name}
                       </a>
                     ) : (
                       "—"

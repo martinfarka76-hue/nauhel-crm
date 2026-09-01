@@ -4,6 +4,61 @@ import { useEffect, useState } from "react";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 
+function getDomain(url) {
+  if (!url) return null;
+  try {
+    let u = url.trim();
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    return new URL(u).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+function CompanyAvatar({ name, website }) {
+  const domain = getDomain(website);
+  const initial = name ? name.charAt(0).toUpperCase() : "?";
+  const [imgFailed, setImgFailed] = useState(false);
+
+  if (domain && !imgFailed) {
+    return (
+      <img
+        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+        alt=""
+        onError={() => setImgFailed(true)}
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: "50%",
+          flexShrink: 0,
+          objectFit: "cover",
+          background: "var(--paper-100)",
+          border: "1px solid var(--paper-200)",
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: "50%",
+        flexShrink: 0,
+        background: "var(--ember-500)",
+        color: "#fff",
+        fontSize: 10.5,
+        fontWeight: 700,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {initial}
+    </span>
+  );
+}
+
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -162,7 +217,12 @@ export default function CompaniesPage() {
                 className="clickable"
                 onClick={() => (window.location.href = `/companies/${c.id}`)}
               >
-                <td style={{ fontWeight: 600 }}>{c.name}</td>
+                <td style={{ fontWeight: 600 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <CompanyAvatar name={c.name} website={c.website} />
+                    {c.name}
+                  </div>
+                </td>
                 <td className="mono">{c.ico || "—"}</td>
                 <td>{c.address || "—"}</td>
               </tr>

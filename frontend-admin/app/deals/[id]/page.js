@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
@@ -82,6 +82,20 @@ export default function DealDetailPage() {
   const [attachments, setAttachments] = useState([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target)) {
+        setShowActionsMenu(false);
+      }
+    }
+    if (showActionsMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showActionsMenu]);
   const [error, setError] = useState("");
   const [transitioning, setTransitioning] = useState(false);
 
@@ -837,14 +851,95 @@ export default function DealDetailPage() {
             {deal.status}
           </span>
           {!editingDeal && (
-            <>
-              <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 12.5 }} onClick={startEditDeal}>
-                Upravit
+            <div style={{ position: "relative" }} ref={actionsMenuRef}>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: "5px 10px", fontSize: 16, lineHeight: 1 }}
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
+                aria-label="Další akce"
+              >
+                ⋯
               </button>
-              <button className="btn btn-danger" style={{ padding: "5px 10px", fontSize: 12.5 }} onClick={handleDeleteDeal}>
-                Smazat
-              </button>
-            </>
+              {showActionsMenu && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 6px)",
+                    right: 0,
+                    background: "#fff",
+                    border: "1px solid var(--line)",
+                    borderRadius: 10,
+                    boxShadow: "0 8px 24px rgba(14,12,9,0.15)",
+                    minWidth: 200,
+                    zIndex: 50,
+                    overflow: "hidden",
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      startEditDeal();
+                      setShowActionsMenu(false);
+                    }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "10px 14px",
+                      background: "none",
+                      border: "none",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      color: "var(--ink-900)",
+                    }}
+                  >
+                    Upravit
+                  </button>
+                  {deal.status !== "Ztraceno" && deal.status !== "Fakturováno" && (
+                    <button
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        handleTransition("Ztraceno");
+                      }}
+                      disabled={transitioning}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "10px 14px",
+                        background: "none",
+                        border: "none",
+                        borderTop: "1px solid var(--paper-200)",
+                        fontSize: 13,
+                        cursor: "pointer",
+                        color: "var(--ink-600)",
+                      }}
+                    >
+                      Označit jako ztracené
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowActionsMenu(false);
+                      handleDeleteDeal();
+                    }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "10px 14px",
+                      background: "none",
+                      border: "none",
+                      borderTop: "1px solid var(--paper-200)",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      color: "#a13d3d",
+                    }}
+                  >
+                    Smazat
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -993,18 +1088,6 @@ export default function DealDetailPage() {
         </div>
       )}
 
-      {deal.status !== "Ztraceno" && deal.status !== "Fakturováno" && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
-          <button
-            className="btn btn-secondary"
-            style={{ fontSize: 12, opacity: 0.7 }}
-            disabled={transitioning}
-            onClick={() => handleTransition("Ztraceno")}
-          >
-            Označit jako ztracené
-          </button>
-        </div>
-      )}
       {/* --- Kalkulace --- */}
       <div className="card" style={{ marginBottom: 20 }} id="kalkulace-section">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
