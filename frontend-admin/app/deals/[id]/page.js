@@ -80,6 +80,7 @@ export default function DealDetailPage() {
   const [sendingInvoiceId, setSendingInvoiceId] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [showAttachments, setShowAttachments] = useState(false);
   const [error, setError] = useState("");
   const [transitioning, setTransitioning] = useState(false);
 
@@ -647,6 +648,141 @@ export default function DealDetailPage() {
 
   const nextStatus = NEXT_MANUAL_STATUS[deal.status];
 
+  const activeCalc = calculations.find((c) => c.is_active);
+  const activeCalcItems = activeCalc ? calcItems[activeCalc.id] || [] : [];
+  const latestObjednavka = documents
+    .filter((d) => d.document_type === "Objednávka")
+    .sort((a, b) => b.version - a.version)[0];
+  const latestZalohova = documents.find((d) => d.document_type === "Zálohová faktura");
+  const latestFinalni = documents.find((d) => d.document_type === "Finální faktura");
+
+  function scrollToSection(sectionId) {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function getGuidance() {
+    if (deal.status === "Ztraceno") {
+      return {
+        title: "Případ je označen jako ztracený",
+        description: 'Pokud se situace změní, stav lze ručně upravit tlačítkem "Upravit" nahoře.',
+      };
+    }
+    if (deal.status === "Lead" || deal.status === "Kvalifikovaný lead") {
+      if (!activeCalc) {
+        return {
+          title: "Vytvořte cenovou kalkulaci",
+          description: "Než půjde vytvořit nabídka, je potřeba spočítat cenu - materiál, práci a dopravu.",
+          actionLabel: "+ Nová kalkulace",
+          action: () => {
+            setShowCalcForm(true);
+            scrollToSection("kalkulace-section");
+          },
+        };
+      }
+      if (activeCalcItems.length === 0) {
+        return {
+          title: "Přidejte položky kalkulace",
+          description: "Kalkulace je založená, ale zatím nemá žádné položky - bez nich nejde spočítat cena.",
+          actionLabel: "Otevřít kalkulaci",
+          action: () => {
+            setExpandedCalcs((prev) => ({ ...prev, [activeCalc.id]: true }));
+            scrollToSection("kalkulace-section");
+          },
+        };
+      }
+      if (deal.status === "Lead") {
+        return {
+          title: "Přesuňte případ do Kvalifikovaného leadu",
+          description: "Kalkulace je připravená. Dalším krokem je posunout případ dál v pipeline.",
+          actionLabel: "Přesunout do: Kvalifikovaný lead",
+          action: () => handleTransition("Kvalifikovaný lead"),
+        };
+      }
+      return {
+        title: "Vytvořte nabídku pro zákazníka",
+        description:
+          'Kalkulace je připravená. Kliknutím na "Přesunout do: Nabídka" se automaticky vygeneruje veřejný odkaz ' +
+          "a odešle e-mail zákazníkovi (pokud má odpovědný kontakt vyplněný e-mail).",
+        actionLabel: "Přesunout do: Nabídka",
+        action: () => handleTransition("Nabídka"),
+      };
+    }
+    if (deal.status === "Nabídka") {
+      return {
+        title: "Nabídka odeslána - čekáte na odpověď zákazníka",
+        description: "Až se zákazník ozve a bude s nabídkou souhlasit, ručně přesuňte případ do stavu Objednávka.",
+        actionLabel: "Přesunout do: Objednávka",
+        action: () => handleTransition("Objednávka"),
+      };
+    }
+    if (deal.status === "Objednávka") {
+      if (!latestObjednavka?.confirmed_at) {
+        return {
+          title: "Čeká se na elektronické potvrzení objednávky",
+          description:
+            "Zákazník dostal e-mail s odkazem na potvrzení objednávky. Jakmile ji potvrdí, automaticky " +
+            "vznikne zálohová faktura a případ se posune dál.",
+        };
+      }
+      return {
+        title: "Objednávka potvrzena",
+        description: "Zálohová faktura by měla vzniknout automaticky. Zkontroluj sekci Dokumenty níže.",
+        actionLabel: "Zobrazit dokumenty",
+        action: () => scrollToSection("dokumenty-section"),
+      };
+    }
+    if (deal.status === "Zálohová faktura") {
+      if (!latestZalohova?.invoice_pdf_filename) {
+        return {
+          title: "Nahrajte zálohovou fakturu",
+          description: "Zákazník potvrdil objednávku. Vystavte zálohovou fakturu (např. ručně v iDokladu) a nahrajte ji sem jako PDF.",
+          actionLabel: "Přejít na fakturu",
+          action: () => scrollToSection("dokumenty-section"),
+        };
+      }
+      if (!latestZalohova?.invoice_sent_at) {
+        return {
+          title: "Odešlete zálohovou fakturu zákazníkovi",
+          description: "Faktura je nahraná - stačí ji odeslat e-mailem (odkaz i PDF příloha).",
+          actionLabel: "Přejít na fakturu",
+          action: () => scrollToSection("dokumenty-section"),
+        };
+      }
+      return {
+        title: "Čeká se na zaplacení zálohy",
+        description:
+          'Jakmile zákazník zálohu zaplatí, zaškrtni "Záloha zaplacena" v editaci případu a přesuň na Vyrobeno.',
+        actionLabel: "Přesunout do: Vyrobeno",
+        action: () => handleTransition("Vyrobeno"),
+      };
+    }
+    if (deal.status === "Vyrobeno") {
+      return {
+        title: "Zakázka se vyrábí",
+        description: "Až bude hotovo a předáno zákazníkovi, přesuň případ do stavu Fakturováno.",
+        actionLabel: "Přesunout do: Fakturováno",
+        action: () => handleTransition("Fakturováno"),
+      };
+    }
+    if (deal.status === "Fakturováno") {
+      if (!latestFinalni?.invoice_pdf_filename) {
+        return {
+          title: "Nahrajte finální fakturu",
+          description: "Vystavte finální fakturu (např. ručně v iDokladu) a nahrajte ji sem jako PDF.",
+          actionLabel: "Přejít na fakturu",
+          action: () => scrollToSection("dokumenty-section"),
+        };
+      }
+      return {
+        title: "Případ je kompletně vyřízen",
+        description: "Kalkulace, nabídka, objednávka i fakturace jsou hotové. Žádná další akce není potřeba.",
+      };
+    }
+    return null;
+  }
+
+  const guidance = getGuidance();
+
   return (
     <ProtectedShell>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -823,29 +959,54 @@ export default function DealDetailPage() {
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ fontWeight: 600, marginBottom: 12 }}>Přechod stavu</div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {nextStatus && (
-            <button className="btn btn-primary" disabled={transitioning} onClick={() => handleTransition(nextStatus)}>
-              Přesunout do: {nextStatus}
-            </button>
-          )}
-          {deal.status === "Objednávka" && (
-            <div style={{ fontSize: 13, color: "var(--ink-600)", alignSelf: "center" }}>
-              Další krok (Zálohová faktura) proběhne automaticky po potvrzení e-signature.
-            </div>
-          )}
-          {deal.status !== "Ztraceno" && deal.status !== "Fakturováno" && (
-            <button className="btn btn-danger" disabled={transitioning} onClick={() => handleTransition("Ztraceno")}>
-              Označit jako ztracené
+      {guidance && (
+        <div
+          style={{
+            background: deal.status === "Ztraceno" ? "var(--paper-100)" : "#fdf3ec",
+            border: `1px solid ${deal.status === "Ztraceno" ? "var(--paper-200)" : "var(--ember-500)"}`,
+            borderRadius: 12,
+            padding: "18px 22px",
+            marginBottom: 20,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "var(--ember-600, #9c5424)",
+              marginBottom: 6,
+            }}
+          >
+            Co dál
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{guidance.title}</div>
+          <div style={{ fontSize: 13.5, color: "var(--ink-600)", marginBottom: guidance.action ? 14 : 0, lineHeight: 1.5 }}>
+            {guidance.description}
+          </div>
+          {guidance.action && (
+            <button className="btn btn-primary" disabled={transitioning} onClick={guidance.action}>
+              {guidance.actionLabel}
             </button>
           )}
         </div>
-      </div>
+      )}
 
+      {deal.status !== "Ztraceno" && deal.status !== "Fakturováno" && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+          <button
+            className="btn btn-secondary"
+            style={{ fontSize: 12, opacity: 0.7 }}
+            disabled={transitioning}
+            onClick={() => handleTransition("Ztraceno")}
+          >
+            Označit jako ztracené
+          </button>
+        </div>
+      )}
       {/* --- Kalkulace --- */}
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card" style={{ marginBottom: 20 }} id="kalkulace-section">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontWeight: 600 }}>Kalkulace</div>
           <button className="btn btn-secondary" onClick={() => setShowCalcForm(!showCalcForm)}>
@@ -974,7 +1135,9 @@ export default function DealDetailPage() {
         )}
 
         {calculations.length === 0 ? (
-          <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádná kalkulace</div>
+          <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>
+            Zatím žádná kalkulace - klikni na "+ Nová kalkulace" a začni spočítat cenu.
+          </div>
         ) : (
           calculations.map((c) => {
             const items = calcItems[c.id] || [];
@@ -1422,69 +1585,8 @@ export default function DealDetailPage() {
         )}
       </div>
 
-      {/* --- Poptávka / Dokumentace --- */}
-      <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <div style={{ fontWeight: 600 }}>Poptávka / Dokumentace</div>
-          <div>
-            <input
-              type="file"
-              id="attachment-upload"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                if (e.target.files[0]) handleUploadAttachment(e.target.files[0]);
-                e.target.value = "";
-              }}
-            />
-            <label
-              htmlFor="attachment-upload"
-              className="btn btn-secondary"
-              style={{ padding: "4px 10px", fontSize: 12.5, cursor: "pointer", display: "inline-block" }}
-            >
-              {uploadingAttachment ? "Nahrávám…" : "+ Nahrát soubor (výkres, dokumentace)"}
-            </label>
-          </div>
-        </div>
-        {attachments.length === 0 ? (
-          <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné přílohy</div>
-        ) : (
-          attachments.map((a) => (
-            <div
-              key={a.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "8px 0",
-                borderBottom: "1px solid var(--paper-200)",
-                fontSize: 13,
-              }}
-            >
-              <span>{a.original_filename}</span>
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <span style={{ fontSize: 11.5, color: "var(--ink-400)" }}>{formatDate(a.uploaded_at)}</span>
-                <button
-                  className="btn btn-secondary"
-                  style={{ padding: "3px 8px", fontSize: 11.5 }}
-                  onClick={() => handleDownloadAttachment(a.id, a.original_filename)}
-                >
-                  Stáhnout
-                </button>
-                <button
-                  className="btn btn-danger"
-                  style={{ padding: "3px 8px", fontSize: 11.5 }}
-                  onClick={() => handleDeleteAttachment(a.id)}
-                >
-                  Smazat
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
       {/* --- Dokumenty --- */}
-      <div className="card">
+      <div className="card" id="dokumenty-section" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontWeight: 600 }}>Dokumenty</div>
           <button
@@ -1671,6 +1773,83 @@ export default function DealDetailPage() {
             );
           })
         )}
+      </div>
+      {/* --- Poptávka / Dokumentace (volitelné, sbalené) --- */}
+      <div className="card">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+            marginBottom: showAttachments ? 10 : 0,
+          }}
+          onClick={() => setShowAttachments(!showAttachments)}
+        >
+          <div style={{ fontWeight: 600, color: "var(--ink-600)" }}>
+            {showAttachments ? "▾" : "▸"} Poptávka / Dokumentace
+            {attachments.length > 0 && (
+              <span style={{ fontWeight: 400, color: "var(--ink-400)" }}> ({attachments.length})</span>
+            )}
+          </div>
+          {showAttachments && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <input
+                type="file"
+                id="attachment-upload"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  if (e.target.files[0]) handleUploadAttachment(e.target.files[0]);
+                  e.target.value = "";
+                }}
+              />
+              <label
+                htmlFor="attachment-upload"
+                className="btn btn-secondary"
+                style={{ padding: "4px 10px", fontSize: 12.5, cursor: "pointer", display: "inline-block" }}
+              >
+                {uploadingAttachment ? "Nahrávám…" : "+ Nahrát soubor (výkres, dokumentace)"}
+              </label>
+            </div>
+          )}
+        </div>
+        {showAttachments &&
+          (attachments.length === 0 ? (
+            <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné přílohy</div>
+          ) : (
+            attachments.map((a) => (
+              <div
+                key={a.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 0",
+                  borderBottom: "1px solid var(--paper-200)",
+                  fontSize: 13,
+                }}
+              >
+                <span>{a.original_filename}</span>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <span style={{ fontSize: 11.5, color: "var(--ink-400)" }}>{formatDate(a.uploaded_at)}</span>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: "3px 8px", fontSize: 11.5 }}
+                    onClick={() => handleDownloadAttachment(a.id, a.original_filename)}
+                  >
+                    Stáhnout
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    style={{ padding: "3px 8px", fontSize: 11.5 }}
+                    onClick={() => handleDeleteAttachment(a.id)}
+                  >
+                    Smazat
+                  </button>
+                </div>
+              </div>
+            ))
+          ))}
       </div>
     </ProtectedShell>
   );

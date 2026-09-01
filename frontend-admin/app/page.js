@@ -16,7 +16,7 @@ function formatPrice(price) {
 function formatDateShort(dateStr) {
   if (!dateStr) return null;
   const [y, m, d] = dateStr.split("-");
-  return `${d}.${m}.`;
+  return `${d}.${m}.${y}`;
 }
 
 function csvEscape(value) {
@@ -604,15 +604,7 @@ export default function DashboardPage() {
                   )}
                 </div>
                 {statusDeals.length > 0 && (
-                  <div
-                    style={{
-                      marginTop: 10,
-                      paddingTop: 8,
-                      borderTop: "1px solid var(--paper-200)",
-                      fontSize: 11.5,
-                      color: "var(--ink-600)",
-                    }}
-                  >
+                  <div className="kanban-col-totals">
                     <div>
                       Celkem: <strong className="mono">{formatPrice(total)}</strong>
                     </div>
