@@ -53,7 +53,10 @@ def create_sharepoint_folder_for_deal(db: Session, deal: Deal) -> None:
 
     year = _dt.date.today().year
     number = peek_next_folder_number(db, year)
-    folder_name = f"{year}_{number:03d}_{deal.name}"
+    company = db.query(Company).filter(Company.id == deal.company_id).first()
+    company_name = _sanitize_filename_part(company.name) if company else "Firma"
+    deal_name = _sanitize_filename_part(deal.name)
+    folder_name = f"{year}_{number:03d}_{company_name}_{deal_name}"
 
     result = sharepoint.create_deal_folder(folder_name)
     if not result:

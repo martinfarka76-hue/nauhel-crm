@@ -8,30 +8,31 @@ import { STATUS_COLORS, NEXT_MANUAL_STATUS } from "@/lib/constants";
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
+
+function getDefaultValidUntil() {
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  return d.toISOString().slice(0, 10);
+}
 const CATEGORIES = ["Materiál", "Práce", "Doprava", "Ostatní"];
 const PRODUCT_LINES = ["Atacama", "Mirage", "Ocaso"];
 
 const TRANSITION_EXPLANATIONS = {
-  "Kvalifikovaný lead":
-    'Přesunout případ do stavu "Kvalifikovaný lead"?',
+  "Kvalifikovaný lead": 'Přesunout případ do stavu "Kvalifikovaný lead"?',
   Nabídka:
-    'Přesunout do stavu "Nabídka"? Vyžaduje existující aktivní kalkulaci - z ní se ' +
-    "automaticky vygeneruje nabídkový dokument (veřejný odkaz pro zákazníka). Ujisti se, " +
-    "že kalkulace obsahuje správné položky a ceny.",
+    "Vytvoří se nabídka a automaticky se odešle zákazníkovi e-mailem (pokud má odpovědný " +
+    "kontakt vyplněný e-mail). Zkontroluj prosím, že kalkulace obsahuje správné položky a ceny.",
   Objednávka:
-    'Přesunout do stavu "Objednávka"? Tímto potvrzuješ, že zákazník nabídku přijal. ' +
-    "Zaznamená se skutečné datum uzavření a automaticky se vytvoří potvrzení objednávky " +
-    "(dokument s vlastním veřejným odkazem). Další krok (Zálohová faktura) proběhne " +
-    "automaticky po elektronickém potvrzení objednávky zákazníkem.",
+    "Tímto potvrzuješ, že zákazník nabídku přijal. Vytvoří se objednávka a odešle se " +
+    "zákazníkovi e-mailem s odkazem na elektronické potvrzení. Jakmile ji zákazník potvrdí, " +
+    "případ se automaticky posune na Zálohovou fakturu.",
   Vyrobeno:
-    'Přesunout do stavu "Vyrobeno"? Vyžaduje zaplacenou zálohu (checkbox "Záloha ' +
-    'zaplacena" v editaci případu) - jinak přechod selže. Automaticky se vytvoří dodací list.',
+    "Vytvoří se záznam o dodacím listu. Případ přesuň, až bude zakázka hotová a předaná " +
+    "zákazníkovi.",
   Fakturováno:
-    'Přesunout do stavu "Fakturováno"? Automaticky se vytvoří finální faktura a ' +
-    "zaznamená se skutečné datum fakturace.",
-  Ztraceno:
-    'Opravdu označit tento případ jako "Ztraceno"? Tuto akci lze později vrátit jen ' +
-    "ruční úpravou stavu.",
+    "Vytvoří se záznam pro finální fakturu (tu pak nahraješ jako PDF v sekci Dokumenty, " +
+    "stejně jako u zálohové faktury). Zaznamená se dnešní datum jako datum fakturace.",
+  Ztraceno: 'Označit tento případ jako "Ztraceno"? Stav lze později kdykoliv ručně vrátit zpět.',
 };
 
 function formatDate(iso) {
@@ -95,7 +96,7 @@ export default function DealDetailPage() {
     discount_material_percent: "0",
     discount_installation_percent: "0",
     deposit_percent: "50",
-    valid_until: "",
+    valid_until: getDefaultValidUntil(),
     delivery_terms: "6-8 týdnů od objednávky",
     payment_terms: "Zálohová faktura 50 % vystavena po potvrzení objednávky, finální faktura se splatností dnem dodání",
   });
@@ -419,7 +420,7 @@ export default function DealDetailPage() {
         discount_material_percent: "0",
         discount_installation_percent: "0",
         deposit_percent: "50",
-        valid_until: "",
+        valid_until: getDefaultValidUntil(),
         delivery_terms: "6-8 týdnů od objednávky",
         payment_terms: "Zálohová faktura 50 % vystavena po potvrzení objednávky, finální faktura se splatností dnem dodání",
       });
@@ -750,8 +751,7 @@ export default function DealDetailPage() {
       }
       return {
         title: "Čeká se na zaplacení zálohy",
-        description:
-          'Jakmile zákazník zálohu zaplatí, zaškrtni "Záloha zaplacena" v editaci případu a přesuň na Vyrobeno.',
+        description: "Jakmile zákazník zálohu zaplatí, přesuň případ do stavu Vyrobeno.",
         actionLabel: "Přesunout do: Vyrobeno",
         action: () => handleTransition("Vyrobeno"),
       };
@@ -1671,7 +1671,18 @@ export default function DealDetailPage() {
                 {(d.document_type === "Zálohová faktura" || d.document_type === "Finální faktura") && (
                   <div style={{ marginBottom: 6 }}>
                     {!d.invoice_pdf_filename ? (
-                      <>
+                      <div
+                        style={{
+                          background: "#fdf3ec",
+                          border: "1px solid var(--ember-500)",
+                          borderRadius: 10,
+                          padding: "12px 14px",
+                          marginTop: 4,
+                        }}
+                      >
+                        <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 8 }}>
+                          Vystav prosím {d.document_type.toLowerCase()} (např. v iDokladu) a nahraj ji sem jako PDF.
+                        </div>
                         <input
                           type="file"
                           accept="application/pdf"
@@ -1681,12 +1692,12 @@ export default function DealDetailPage() {
                         />
                         <label
                           htmlFor={`invoice-upload-${d.id}`}
-                          className="btn btn-secondary"
-                          style={{ padding: "5px 10px", fontSize: 12.5, cursor: "pointer", display: "inline-block" }}
+                          className="btn btn-primary"
+                          style={{ padding: "8px 16px", fontSize: 13, cursor: "pointer", display: "inline-block" }}
                         >
-                          {uploadingInvoiceId === d.id ? "Nahrávám…" : "Nahrát fakturu (PDF)"}
+                          {uploadingInvoiceId === d.id ? "Nahrávám…" : "📎 Nahrát fakturu (PDF)"}
                         </label>
-                      </>
+                      </div>
                     ) : (
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                         <button

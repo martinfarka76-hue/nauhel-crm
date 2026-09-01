@@ -11,7 +11,11 @@ from app.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.deal_transitions import perform_esignature_confirmation
 from app.core.ms_graph import send_email
-from app.core.customer_notifications import notify_customer_document_created
+from app.core.customer_notifications import (
+    notify_customer_document_created,
+    SIGNATURE_HTML,
+    _salutation_and_surname,
+)
 from app.core.deal_folder import (
     sync_offer_pdf_to_sharepoint,
     sync_invoice_pdf_to_sharepoint,
@@ -310,6 +314,7 @@ def confirm_document(access_token: str, payload: DocumentConfirmRequest, db: Ses
                     f"Potvrdil(a): {document.confirmed_by_name}<br>"
                     f"Datum: {document.confirmed_at.strftime('%d.%m.%Y %H:%M')}</p>"
                     f'<p><a href="{deal_link}">Otevřít případ v CRM</a></p>'
+                    f"{SIGNATURE_HTML}"
                 )
                 send_email(admin_email, f"Objednávka potvrzena - {deal.name}", body_html)
 
@@ -429,11 +434,11 @@ def send_invoice_email(
     label = "Zálohová faktura" if document.document_type == DocumentType.ZALOHOVA_FAKTURA else "Faktura"
     subject = f"{label} - {deal.name}"
     body_html = (
-        f"<p>Dobrý den {contact.first_name},</p>"
+        f"<p>Dobrý den, {_salutation_and_surname(contact)},</p>"
         f"<p>zasíláme Vám {label.lower()} k zakázce „{deal.name}“{company_note}, "
         f"v příloze i na odkazu níže.</p>"
         f'<p><a href="{link}">Zobrazit fakturu online</a></p>'
-        f"<p>NAUHEL s.r.o. · Ve Mlejnku 108, 257 65 Čechtice<br>telefon: 605 457 927</p>"
+        f"{SIGNATURE_HTML}"
     )
 
     file_path = _invoice_file_path(document_id)

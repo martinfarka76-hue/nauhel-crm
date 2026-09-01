@@ -8,8 +8,8 @@ Pravidla podle odsouhlasené architektury:
 - Nabídka -> Objednávka: ruční ("Odeslat potvrzení objednávky")
 - Objednávka -> Zálohová faktura: POUZE automaticky přes e-signature
   webhook, ne přes tento manuální endpoint
-- Zálohová faktura -> Vyrobeno: ruční, vyžaduje deposit_paid=True,
-  automaticky vytvoří Document (Dodací list)
+- Zálohová faktura -> Vyrobeno: ruční, automaticky vytvoří Document
+  (Dodací list) - kontrola zaplacení zálohy zatím neprobíhá online
 - Vyrobeno -> Fakturováno: ruční, automaticky vytvoří Document
   (Finální faktura)
 - Kterýkoli stav -> Ztraceno: ruční, vždy povoleno
@@ -122,13 +122,10 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
         notify_customer_document_created(db, document, deal)
         sync_offer_pdf_to_sharepoint(db, document, deal)
 
-    # Zálohová faktura -> Vyrobeno: vyžaduje zaplacenou zálohu, vytváří Dodací list
+    # Zálohová faktura -> Vyrobeno: vytváří Dodací list. Kontrola zaplacení
+    # zálohy se zatím neprovádí online (bez bankovní integrace) - stav
+    # deposit_paid zůstává jen informativní checkbox v editaci Dealu.
     if to_status == DealStatus.VYROBENO:
-        if not deal.deposit_paid:
-            raise HTTPException(
-                status_code=400,
-                detail="Přechod do stavu 'Vyrobeno' vyžaduje zaplacenou zálohu (deposit_paid=true).",
-            )
         document = Document(deal_id=deal.id, document_type=DocumentType.DODACI_LIST, version=1)
         db.add(document)
 
