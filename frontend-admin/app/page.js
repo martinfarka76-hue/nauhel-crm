@@ -260,6 +260,7 @@ export default function DashboardPage() {
 
   return (
     <ProtectedShell>
+      <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 64px)" }}>
       <div
         style={{
           display: "flex",
@@ -529,7 +530,7 @@ export default function DashboardPage() {
       {loading && <div className="empty-state">Načítám…</div>}
 
       {!loading && viewMode === "kanban" && (
-        <div className="kanban">
+        <div className="kanban" style={{ flex: 1, minHeight: 0 }}>
           {DEAL_STATUSES.map((status) => {
             const statusDeals = dealsByStatus[status];
             const { total, weighted } = columnTotals(statusDeals, status);
@@ -704,6 +705,7 @@ export default function DashboardPage() {
           )}
         </>
       )}
+      </div>
     </ProtectedShell>
   );
 }

@@ -18,6 +18,64 @@ function BellIcon() {
   );
 }
 
+function DashboardIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="12" width="7" height="9" rx="1" />
+      <rect x="3" y="16" width="7" height="5" rx="1" />
+    </svg>
+  );
+}
+
+function BuildingIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 22V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v18" />
+      <path d="M14 9h4a1 1 0 0 1 1 1v12" />
+      <path d="M6 22h13" />
+      <line x1="9" y1="6" x2="9" y2="6" />
+      <line x1="9" y1="10" x2="9" y2="10" />
+      <line x1="9" y1="14" x2="9" y2="14" />
+      <line x1="13" y1="6" x2="13" y2="6" />
+      <line x1="13" y1="10" x2="13" y2="10" />
+      <line x1="13" y1="14" x2="13" y2="14" />
+      <line x1="17" y1="13" x2="17" y2="13" />
+      <line x1="17" y1="17" x2="17" y2="17" />
+    </svg>
+  );
+}
+
+function ContactsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+    </svg>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+      <path d="M14 3v5h5" />
+      <line x1="9" y1="13" x2="15" y2="13" />
+      <line x1="9" y1="17" x2="15" y2="17" />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
 export default function ProtectedShell({ children }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -118,11 +176,11 @@ export default function ProtectedShell({ children }) {
   }
 
   const links = [
-    { href: "/", label: "Přehled" },
-    { href: "/companies", label: "Firmy" },
-    { href: "/contacts", label: "Kontakty" },
-    { href: "/documents", label: "Dokumenty" },
-    { href: "/settings", label: "Nastavení" },
+    { href: "/", label: "Přehled", Icon: DashboardIcon },
+    { href: "/companies", label: "Firmy", Icon: BuildingIcon },
+    { href: "/contacts", label: "Kontakty", Icon: ContactsIcon },
+    { href: "/documents", label: "Dokumenty", Icon: DocumentIcon },
+    { href: "/settings", label: "Nastavení", Icon: SettingsIcon },
   ];
 
   return (
@@ -266,7 +324,9 @@ export default function ProtectedShell({ children }) {
             key={link.href}
             href={link.href}
             className={`sidebar-link ${pathname === link.href ? "active" : ""}`}
+            style={{ display: "flex", alignItems: "center", gap: 10 }}
           >
+            <link.Icon />
             {link.label}
           </a>
         ))}
