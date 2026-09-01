@@ -260,52 +260,56 @@ export default function DashboardPage() {
 
   return (
     <ProtectedShell>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", maxWidth: 720 }}>
-        <div>
-          <h1 className="page-title">Přehled obchodních případů</h1>
-          <p className="page-subtitle">Pipeline podle aktuálního stavu</p>
-        </div>
-        <div style={{ display: "flex", gap: 2, background: "var(--paper-200)", borderRadius: 8, padding: 2 }}>
-          <button
-            onClick={() => setViewMode("kanban")}
-            style={{
-              border: "none",
-              borderRadius: 6,
-              padding: "6px 14px",
-              fontSize: 13,
-              cursor: "pointer",
-              background: viewMode === "kanban" ? "#fff" : "transparent",
-              fontWeight: viewMode === "kanban" ? 600 : 400,
-              color: viewMode === "kanban" ? "var(--ink-900)" : "var(--ink-600)",
-            }}
-          >
-            Mřížka
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          rowGap: 10,
+          marginBottom: 16,
+        }}
+      >
+        <h1 className="page-title" style={{ margin: 0 }}>
+          Přehled obchodních případů
+        </h1>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button className="btn btn-primary" onClick={() => setShowNewDealForm(!showNewDealForm)}>
+            {showNewDealForm ? "Zrušit" : "+ Nový obchodní případ"}
           </button>
-          <button
-            onClick={() => setViewMode("list")}
-            style={{
-              border: "none",
-              borderRadius: 6,
-              padding: "6px 14px",
-              fontSize: 13,
-              cursor: "pointer",
-              background: viewMode === "list" ? "#fff" : "transparent",
-              fontWeight: viewMode === "list" ? 600 : 400,
-              color: viewMode === "list" ? "var(--ink-900)" : "var(--ink-600)",
-            }}
-          >
-            Seznam
-          </button>
+          <div style={{ display: "flex", gap: 2, background: "var(--paper-200)", borderRadius: 8, padding: 2 }}>
+            <button
+              onClick={() => setViewMode("kanban")}
+              style={{
+                border: "none",
+                borderRadius: 6,
+                padding: "6px 14px",
+                fontSize: 13,
+                cursor: "pointer",
+                background: viewMode === "kanban" ? "#fff" : "transparent",
+                fontWeight: viewMode === "kanban" ? 600 : 400,
+                color: viewMode === "kanban" ? "var(--ink-900)" : "var(--ink-600)",
+              }}
+            >
+              Mřížka
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              style={{
+                border: "none",
+                borderRadius: 6,
+                padding: "6px 14px",
+                fontSize: 13,
+                cursor: "pointer",
+                background: viewMode === "list" ? "#fff" : "transparent",
+                fontWeight: viewMode === "list" ? 600 : 400,
+                color: viewMode === "list" ? "var(--ink-900)" : "var(--ink-600)",
+              }}
+            >
+              Seznam
+            </button>
+          </div>
         </div>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowNewDealForm(!showNewDealForm)}
-        >
-          {showNewDealForm ? "Zrušit" : "+ Nový obchodní případ"}
-        </button>
       </div>
 
       {showNewDealForm && (
@@ -403,8 +407,8 @@ export default function DashboardPage() {
           display: "flex",
           gap: 14,
           alignItems: "center",
-          marginBottom: 20,
-          padding: "10px 16px",
+          marginBottom: 16,
+          padding: "9px 14px",
           background: "var(--paper-50)",
           border: "1px solid var(--paper-200)",
           borderRadius: 10,
