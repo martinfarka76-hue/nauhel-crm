@@ -3,6 +3,7 @@ Propojení mezi CRM entitami (Deal, Document) a SharePoint akcemi -
 vytvoření složky zakázky, nahrání PDF nabídky/objednávky, nahrání faktury.
 """
 import logging
+import re
 import datetime as _dt
 
 from sqlalchemy.orm import Session
@@ -19,6 +20,24 @@ from app.models.notification import Notification
 from app.models.enums import DocumentType
 
 logger = logging.getLogger("nauhel_crm.deal_folder")
+
+
+def _sanitize_filename_part(text: str) -> str:
+    """Odstraní znaky nevhodné pro název souboru na SharePointu/Windows."""
+    return re.sub(r'[\\/:*?"<>|]', "", text or "").strip()
+
+
+def _build_document_filename(deal: Deal, company: Company | None, document_type_label: str) -> str:
+    """
+    Sestaví jednotný, čitelný název souboru ve formátu
+    "{rok}_{číslo}_{Nabídka/Objednávka}_{Firma}_{Název zakázky}.pdf".
+    Pokud Deal ještě nemá přidělené číslo složky, použije se "000".
+    """
+    year = deal.sharepoint_folder_year or _dt.date.today().year
+    number = deal.sharepoint_folder_number or 0
+    company_name = _sanitize_filename_part(company.name) if company else "Firma"
+    deal_name = _sanitize_filename_part(deal.name)
+    return f"{year}_{number:03d}_{document_type_label}_{company_name}_{deal_name}.pdf"
 
 
 def create_sharepoint_folder_for_deal(db: Session, deal: Deal) -> None:
@@ -42,6 +61,8 @@ def create_sharepoint_folder_for_deal(db: Session, deal: Deal) -> None:
 
     confirm_folder_number_used(db, year)
 
+    deal.sharepoint_folder_year = year
+    deal.sharepoint_folder_number = number
     deal.sharepoint_folder_url = result.get("web_url")
     deal.sharepoint_folder_id = result.get("folder_id")
     deal.sharepoint_drive_id = result.get("drive_id")
@@ -78,7 +99,8 @@ def sync_offer_pdf_to_sharepoint(db: Session, document: Document, deal: Deal) ->
             )
 
         pdf_bytes = generate_offer_pdf(document, deal, company, calc, items)
-        filename = f"{document.document_type}_v{document.version}.pdf"
+        type_label = document.document_type.value
+        filename = _build_document_filename(deal, company, type_label)
         uploaded = sharepoint.upload_file_to_folder(
             deal.sharepoint_drive_id, deal.sharepoint_subfolder_nabidka_id, filename, pdf_bytes
         )
@@ -86,7 +108,7 @@ def sync_offer_pdf_to_sharepoint(db: Session, document: Document, deal: Deal) ->
             notification = Notification(
                 notification_type="sharepoint_document_synced",
                 message=(
-                    f"{document.document_type} (v{document.version}) nahrána na SharePoint - "
+                    f"{type_label} (v{document.version}) nahrána na SharePoint - "
                     f"případ „{deal.name}“."
                 ),
                 deal_id=deal.id,
@@ -108,7 +130,7 @@ def sync_invoice_pdf_to_sharepoint(db: Session, deal: Deal, document: Document, 
     if uploaded:
         notification = Notification(
             notification_type="sharepoint_document_synced",
-            message=f"{document.document_type} nahrána na SharePoint - případ „{deal.name}“.",
+            message=f"{document.document_type.value} nahrána na SharePoint - případ „{deal.name}“.",
             deal_id=deal.id,
             document_id=document.id,
         )

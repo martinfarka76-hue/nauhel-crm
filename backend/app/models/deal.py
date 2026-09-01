@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Numeric, Boolean, DateTime, Date, ForeignKey, Enum
+from sqlalchemy import Column, String, Numeric, Integer, Boolean, DateTime, Date, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -38,6 +38,10 @@ class Deal(Base):
     sharepoint_subfolder_nabidka_id = Column(String(255), nullable=True)
     sharepoint_subfolder_fakturace_id = Column(String(255), nullable=True)
     sharepoint_subfolder_poptavka_id = Column(String(255), nullable=True)
+    # Uloženo zvlášť (ne jen v názvu složky) - používá se pro sestavení
+    # jednotného názvu souborů nabídek/objednávek (např. "2026_030_Nabídka_...")
+    sharepoint_folder_year = Column(Integer, nullable=True)
+    sharepoint_folder_number = Column(Integer, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

@@ -78,7 +78,7 @@ def generate_offer_pdf(document: Document, deal: Deal, company: Company, calc: C
     </style>
     </head>
     <body>
-      <div class="eyebrow">{document.document_type} pro {company.name}</div>
+      <div class="eyebrow">{document.document_type.value} pro {company.name}</div>
       <h1>{deal.name}</h1>
       <div class="stats">{stats_html}</div>
       <table>
