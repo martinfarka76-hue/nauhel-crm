@@ -177,6 +177,7 @@ def create_deal_folder(folder_name: str) -> dict | None:
             "drive_id": drive_id,
             "poptavka_subfolder_id": subfolder_ids.get("01_Poptávka"),
             "nabidka_subfolder_id": subfolder_ids.get("02_Nabídka"),
+            "realizace_subfolder_id": subfolder_ids.get("03_Realizace"),
             "fakturace_subfolder_id": subfolder_ids.get("04_Fakturace"),
         }
     except Exception:

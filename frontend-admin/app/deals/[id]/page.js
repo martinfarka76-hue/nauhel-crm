@@ -79,6 +79,7 @@ export default function DealDetailPage() {
   const [copiedDoc, setCopiedDoc] = useState(null);
   const [uploadingInvoiceId, setUploadingInvoiceId] = useState(null);
   const [sendingInvoiceId, setSendingInvoiceId] = useState(null);
+  const [copiedInvoiceLineId, setCopiedInvoiceLineId] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
@@ -217,6 +218,25 @@ export default function DealDetailPage() {
       const link = document.createElement("a");
       link.href = url;
       link.download = "faktura.pdf";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDownloadDeliveryNote(documentId) {
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/documents/${documentId}/delivery-note`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+      if (!res.ok) throw new Error("Stažení dodacího listu selhalo.");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "dodaci_list.docx";
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -1730,6 +1750,17 @@ export default function DealDetailPage() {
                   </div>
                 )}
                 <div style={{ color: "var(--ink-600)", marginBottom: 6 }}>Vytvořeno: {formatDate(d.created_at)}</div>
+                {d.document_type === "Dodací list" && d.delivery_note_filename && (
+                  <div style={{ marginBottom: 6 }}>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: "4px 10px", fontSize: 12 }}
+                      onClick={() => handleDownloadDeliveryNote(d.id)}
+                    >
+                      Stáhnout dodací list (Word)
+                    </button>
+                  </div>
+                )}
                 {(d.document_type === "Zálohová faktura" || d.document_type === "Finální faktura") &&
                   d.amount != null && (
                     <div style={{ marginBottom: 6 }}>
@@ -1753,6 +1784,37 @@ export default function DealDetailPage() {
 
                 {(d.document_type === "Zálohová faktura" || d.document_type === "Finální faktura") && (
                   <div style={{ marginBottom: 6 }}>
+                    {d.suggested_invoice_line && (
+                      <div
+                        style={{
+                          background: "var(--paper-50)",
+                          border: "1px solid var(--paper-200)",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div style={{ fontSize: 11, color: "var(--ink-400)", marginBottom: 4 }}>
+                          Návrh položky faktury (kvůli 12% DPH musí být jen jedna položka):
+                        </div>
+                        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                          <div style={{ fontSize: 12.5, color: "var(--ink-900)", flex: 1 }}>
+                            {d.suggested_invoice_line}
+                          </div>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ padding: "3px 8px", fontSize: 11.5, flexShrink: 0 }}
+                            onClick={() => {
+                              navigator.clipboard.writeText(d.suggested_invoice_line);
+                              setCopiedInvoiceLineId(d.id);
+                              setTimeout(() => setCopiedInvoiceLineId(null), 2000);
+                            }}
+                          >
+                            {copiedInvoiceLineId === d.id ? "Zkopírováno ✓" : "Zkopírovat"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {!d.invoice_pdf_filename ? (
                       <div
                         style={{

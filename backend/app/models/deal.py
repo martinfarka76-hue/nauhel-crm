@@ -38,6 +38,7 @@ class Deal(Base):
     sharepoint_subfolder_nabidka_id = Column(String(255), nullable=True)
     sharepoint_subfolder_fakturace_id = Column(String(255), nullable=True)
     sharepoint_subfolder_poptavka_id = Column(String(255), nullable=True)
+    sharepoint_subfolder_realizace_id = Column(String(255), nullable=True)
     # Uloženo zvlášť (ne jen v názvu složky) - používá se pro sestavení
     # jednotného názvu souborů nabídek/objednávek (např. "2026_030_Nabídka_...")
     sharepoint_folder_year = Column(Integer, nullable=True)

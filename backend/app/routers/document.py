@@ -389,6 +389,29 @@ def download_invoice_pdf(
     return FileResponse(file_path, media_type="application/pdf", filename=file_path.name)
 
 
+DELIVERY_NOTE_STORAGE_DIR = Path("/app/data/delivery_notes")
+
+
+@router.get("/documents/{document_id}/delivery-note")
+def download_delivery_note(
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Stažení automaticky vygenerovaného dodacího listu (Word .docx)."""
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document or not document.delivery_note_filename:
+        raise HTTPException(status_code=404, detail="Delivery note not found")
+    file_path = DELIVERY_NOTE_STORAGE_DIR / document.delivery_note_filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Delivery note file missing on disk")
+    return FileResponse(
+        file_path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=f"Dodaci_list_{document.deal_id}.docx",
+    )
+
+
 @router.get("/public/documents/{access_token}/invoice-pdf")
 def download_invoice_pdf_public(access_token: str, db: Session = Depends(get_db)):
     """Stažení nahrané faktury - veřejné, chráněné jen náhodným tokenem v odkazu."""

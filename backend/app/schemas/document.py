@@ -35,6 +35,7 @@ class DocumentOut(BaseModel):
     idoklad_invoice_number: Optional[str] = None
     idoklad_pdf_url: Optional[str] = None
     invoice_pdf_filename: Optional[str] = None
+    delivery_note_filename: Optional[str] = None
     invoice_sent_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

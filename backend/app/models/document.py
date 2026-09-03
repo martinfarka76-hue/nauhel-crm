@@ -57,6 +57,10 @@ class Document(Base):
     invoice_pdf_filename = Column(String(255), nullable=True)
     invoice_sent_at = Column(DateTime, nullable=True)
 
+    # Automaticky vygenerovaný dodací list (Word .docx) - relevantní jen
+    # pro Dodací list, vzniká automaticky při přechodu na "Vyrobeno"
+    delivery_note_filename = Column(String(255), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

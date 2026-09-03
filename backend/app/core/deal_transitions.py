@@ -25,7 +25,11 @@ from app.models.calculation import Calculation
 from app.models.enums import DealStatus, DocumentType
 from app.core.customer_notifications import notify_customer_document_created
 from app.core.invoice_issuing import issue_idoklad_invoice_for_document
-from app.core.deal_folder import create_sharepoint_folder_for_deal, sync_offer_pdf_to_sharepoint
+from app.core.deal_folder import (
+    create_sharepoint_folder_for_deal,
+    sync_offer_pdf_to_sharepoint,
+    generate_and_sync_delivery_note,
+)
 
 
 # Stavy dosažitelné manuálně přes /transition endpoint (bez Ztraceno, to je vždy povoleno zvlášť)
@@ -128,6 +132,8 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
     if to_status == DealStatus.VYROBENO:
         document = Document(deal_id=deal.id, document_type=DocumentType.DODACI_LIST, version=1)
         db.add(document)
+        db.flush()
+        generate_and_sync_delivery_note(db, deal, document)
 
     # Vyrobeno -> Fakturováno: zaznamenej skutečné datum fakturace, vytváří finální fakturu
     # s částkou = celková cena aktivní kalkulace mínus již vyúčtovaná záloha
