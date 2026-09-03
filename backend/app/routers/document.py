@@ -20,6 +20,7 @@ from app.core.deal_folder import (
     sync_offer_pdf_to_sharepoint,
     sync_invoice_pdf_to_sharepoint,
     create_sharepoint_folder_for_deal,
+    _build_document_filename,
 )
 from app.models.document import Document
 from app.models.document_view import DocumentView
@@ -398,17 +399,23 @@ def download_delivery_note(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Stažení automaticky vygenerovaného dodacího listu (Word .docx)."""
+    """Stažení automaticky vygenerovaného dodacího listu (PDF)."""
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document or not document.delivery_note_filename:
         raise HTTPException(status_code=404, detail="Delivery note not found")
     file_path = DELIVERY_NOTE_STORAGE_DIR / document.delivery_note_filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Delivery note file missing on disk")
+
+    deal = db.query(Deal).filter(Deal.id == document.deal_id).first()
+    company = db.query(Company).filter(Company.id == deal.company_id).first() if deal else None
+    download_filename = (
+        _build_document_filename(deal, company, "Dodací list") if deal else file_path.name
+    )
     return FileResponse(
         file_path,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        filename=f"Dodaci_list_{document.deal_id}.docx",
+        media_type="application/pdf",
+        filename=download_filename,
     )
 
 

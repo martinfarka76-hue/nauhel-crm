@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core import sharepoint
 from app.core.folder_sequence import peek_next_folder_number, confirm_folder_number_used
 from app.core.offer_pdf import generate_offer_pdf
-from app.core.delivery_note import generate_delivery_note
+from app.core.delivery_note_pdf import generate_delivery_note_pdf
 from app.models.deal import Deal
 from app.models.document import Document
 from app.models.company import Company
@@ -167,7 +167,7 @@ def sync_attachment_to_sharepoint(db: Session, deal: Deal, filename: str, conten
 
 def generate_and_sync_delivery_note(db: Session, deal: Deal, document: Document) -> None:
     """
-    Vygeneruje Dodací list (Word .docx) ze šablony, uloží ho lokálně
+    Vygeneruje Dodací list (PDF, v brandovém designu) a uloží ho lokálně
     (aby šel stáhnout z CRM) a nahraje kopii do podsložky 03_Realizace
     na SharePointu. Nikdy nevyhazuje výjimku ven - selhání generování
     nemá zablokovat samotný přechod stavu Dealu.
@@ -177,18 +177,18 @@ def generate_and_sync_delivery_note(db: Session, deal: Deal, document: Document)
         contact = db.query(Contact).filter(Contact.id == deal.contact_id).first() if deal.contact_id else None
         owner = db.query(User).filter(User.id == deal.owner_user_id).first() if deal.owner_user_id else None
 
-        docx_bytes = generate_delivery_note(db, deal, company, contact, owner)
+        pdf_bytes = generate_delivery_note_pdf(db, deal, company, contact, owner)
 
         DELIVERY_NOTE_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-        file_path = DELIVERY_NOTE_STORAGE_DIR / f"{document.id}.docx"
-        file_path.write_bytes(docx_bytes)
+        file_path = DELIVERY_NOTE_STORAGE_DIR / f"{document.id}.pdf"
+        file_path.write_bytes(pdf_bytes)
         document.delivery_note_filename = file_path.name
         db.commit()
 
         if deal.sharepoint_drive_id and deal.sharepoint_subfolder_realizace_id:
-            filename = f"Dodaci_list_{deal.name}.docx"
+            filename = _build_document_filename(deal, company, "Dodací list")
             uploaded = sharepoint.upload_file_to_folder(
-                deal.sharepoint_drive_id, deal.sharepoint_subfolder_realizace_id, filename, docx_bytes
+                deal.sharepoint_drive_id, deal.sharepoint_subfolder_realizace_id, filename, pdf_bytes
             )
             if uploaded:
                 notification = Notification(

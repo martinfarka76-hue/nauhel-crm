@@ -18,7 +18,9 @@ const CATEGORIES = ["Materiál", "Práce", "Doprava", "Ostatní"];
 const PRODUCT_LINES = ["Atacama", "Mirage", "Ocaso"];
 
 const TRANSITION_EXPLANATIONS = {
-  "Kvalifikovaný lead": 'Přesunout případ do stavu "Kvalifikovaný lead"?',
+  "Kvalifikovaný lead":
+    'Přesunout případ do stavu "Kvalifikovaný lead"? Jen posuneš pipeline dál - nic se ' +
+    "automaticky nevytváří ani neodesílá.",
   Nabídka:
     "Vytvoří se nabídka a automaticky se odešle zákazníkovi e-mailem (pokud má odpovědný " +
     "kontakt vyplněný e-mail). Zkontroluj prosím, že kalkulace obsahuje správné položky a ceny.",
@@ -27,12 +29,15 @@ const TRANSITION_EXPLANATIONS = {
     "zákazníkovi e-mailem s odkazem na elektronické potvrzení. Jakmile ji zákazník potvrdí, " +
     "případ se automaticky posune na Zálohovou fakturu.",
   Vyrobeno:
-    "Vytvoří se záznam o dodacím listu. Případ přesuň, až bude zakázka hotová a předaná " +
+    "⚠️ Automaticky se vygeneruje PDF dodacího listu (s údaji z aktivní kalkulace) a nahraje se na " +
+    "SharePoint do složky 03_Realizace. Přesuň případ, až bude zakázka hotová a připravená k předání " +
     "zákazníkovi.",
   Fakturováno:
     "Vytvoří se záznam pro finální fakturu (tu pak nahraješ jako PDF v sekci Dokumenty, " +
     "stejně jako u zálohové faktury). Zaznamená se dnešní datum jako datum fakturace.",
-  Ztraceno: 'Označit tento případ jako "Ztraceno"? Stav lze později kdykoliv ručně vrátit zpět.',
+  Ztraceno:
+    'Označit tento případ jako "Ztraceno"? Nic se automaticky nemaže ani neodesílá - stav lze ' +
+    "později kdykoliv ručně vrátit zpět.",
 };
 
 function formatDate(iso) {
@@ -236,7 +241,7 @@ export default function DealDetailPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "dodaci_list.docx";
+      link.download = "dodaci_list.pdf";
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -699,7 +704,7 @@ export default function DealDetailPage() {
     if (deal.status === "Ztraceno") {
       return {
         title: "Případ je označen jako ztracený",
-        description: 'Pokud se situace změní, stav lze ručně upravit tlačítkem "Upravit" nahoře.',
+        description: 'Pokud se situace změní, stav lze ručně upravit z menu "⋯" nahoře.',
       };
     }
     if (deal.status === "Lead" || deal.status === "Kvalifikovaný lead") {
@@ -761,7 +766,9 @@ export default function DealDetailPage() {
       }
       return {
         title: "Objednávka potvrzena",
-        description: "Zálohová faktura by měla vzniknout automaticky. Zkontroluj sekci Dokumenty níže.",
+        description:
+          "Zálohová faktura vznikne automaticky během pár vteřin. Pokud se stav neaktualizuje, " +
+          "obnov stránku a zkontroluj sekci Dokumenty níže.",
         actionLabel: "Zobrazit dokumenty",
         action: () => scrollToSection("dokumenty-section"),
       };
@@ -793,7 +800,9 @@ export default function DealDetailPage() {
     if (deal.status === "Vyrobeno") {
       return {
         title: "Zakázka se vyrábí",
-        description: "Až bude hotovo a předáno zákazníkovi, přesuň případ do stavu Fakturováno.",
+        description:
+          "Dodací list byl automaticky vygenerován (viz sekce Dokumenty) a nahrán na SharePoint. " +
+          "Až bude zakázka hotová a předaná zákazníkovi, přesuň případ do stavu Fakturováno.",
         actionLabel: "Přesunout do: Fakturováno",
         action: () => handleTransition("Fakturováno"),
       };
@@ -1092,8 +1101,20 @@ export default function DealDetailPage() {
               letterSpacing: "0.06em",
               color: "var(--ember-600, #9c5424)",
               marginBottom: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: STATUS_COLORS[deal.status],
+                flexShrink: 0,
+              }}
+            />
             Co dál
           </div>
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{guidance.title}</div>
@@ -1757,7 +1778,7 @@ export default function DealDetailPage() {
                       style={{ padding: "4px 10px", fontSize: 12 }}
                       onClick={() => handleDownloadDeliveryNote(d.id)}
                     >
-                      Stáhnout dodací list (Word)
+                      Stáhnout dodací list (PDF)
                     </button>
                   </div>
                 )}

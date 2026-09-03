@@ -12,3 +12,5 @@ data/uploads/
 data/n8n/
 data/invoices/
 data/attachments/
+data/delivery_notes/
+backend/data/delivery_notes/
