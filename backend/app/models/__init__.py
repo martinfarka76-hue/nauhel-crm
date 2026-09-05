@@ -13,6 +13,7 @@ from app.models.pricing_parameter import PricingParameter
 from app.models.notification import Notification
 from app.models.folder_sequence import FolderSequence
 from app.models.deal_attachment import DealAttachment
+from app.models.deal_note import DealNote
 from app.models.enums import DealStatus, DocumentType, UserRole, ItemCategory
 
 __all__ = [
@@ -31,6 +32,7 @@ __all__ = [
     "Notification",
     "FolderSequence",
     "DealAttachment",
+    "DealNote",
     "DealStatus",
     "DocumentType",
     "UserRole",

@@ -86,6 +86,9 @@ export default function DealDetailPage() {
   const [sendingInvoiceId, setSendingInvoiceId] = useState(null);
   const [copiedInvoiceLineId, setCopiedInvoiceLineId] = useState(null);
   const [attachments, setAttachments] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -143,15 +146,17 @@ export default function DealDetailPage() {
           api.get(`/deals/${id}/calculations`),
           api.get(`/deals/${id}/documents`),
           api.get(`/deals/${id}/attachments`),
+          api.get(`/deals/${id}/notes`),
         ]);
       })
-      .then(async ([c, dealContacts, usersData, calcs, docs, attachmentsData]) => {
+      .then(async ([c, dealContacts, usersData, calcs, docs, attachmentsData, notesData]) => {
         setCompany(c);
         setCompanyContacts(dealContacts);
         setUsers(usersData);
         setCalculations(calcs);
         setDocuments(docs);
         setAttachments(attachmentsData);
+        setNotes(notesData);
         const itemsEntries = await Promise.all(
           calcs.map(async (calc) => [calc.id, await api.get(`/calculations/${calc.id}/items`)])
         );
@@ -260,6 +265,21 @@ export default function DealDetailPage() {
       setError(err.message);
     } finally {
       setSendingInvoiceId(null);
+    }
+  }
+
+  async function handleAddNote() {
+    if (!newNoteText.trim()) return;
+    setAddingNote(true);
+    setError("");
+    try {
+      await api.post(`/deals/${id}/notes`, { content: newNoteText.trim() });
+      setNewNoteText("");
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAddingNote(false);
     }
   }
 
@@ -1130,6 +1150,8 @@ export default function DealDetailPage() {
       )}
 
       {/* --- Kalkulace --- */}
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+      <div style={{ flex: "2 1 0%", minWidth: 0 }}>
       <div className="card" style={{ marginBottom: 20 }} id="kalkulace-section">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontWeight: 600 }}>Kalkulace</div>
@@ -1951,6 +1973,47 @@ export default function DealDetailPage() {
           })
         )}
       </div>
+      </div>
+
+      <div style={{ flex: "1 1 0%", minWidth: 280 }}>
+      {/* --- Poznámky --- */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>Poznámky</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          <input
+            type="text"
+            placeholder="Přidat poznámku…"
+            value={newNoteText}
+            onChange={(e) => setNewNoteText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAddNote();
+            }}
+            style={{ flex: 1, padding: "8px 12px", fontSize: 13, borderRadius: 8, border: "1px solid var(--paper-200)" }}
+          />
+          <button className="btn btn-primary" onClick={handleAddNote} disabled={addingNote || !newNoteText.trim()}>
+            {addingNote ? "Přidávám…" : "Přidat"}
+          </button>
+        </div>
+        {notes.length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné poznámky</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto" }}>
+            {notes.map((n) => (
+              <div key={n.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <div style={{ flexShrink: 0, width: 3, height: 3, borderRadius: "50%", background: "var(--ink-400)", marginTop: 8 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: "var(--ink-900)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                    {n.content}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--ink-400)", marginTop: 2 }}>
+                    {n.author_name || "—"} · {formatDate(n.created_at)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       {/* --- Poptávka / Dokumentace (volitelné, sbalené) --- */}
       <div className="card">
         <div
@@ -2027,6 +2090,8 @@ export default function DealDetailPage() {
               </div>
             ))
           ))}
+      </div>
+      </div>
       </div>
     </ProtectedShell>
   );
