@@ -1488,6 +1488,10 @@ export default function DealDetailPage() {
                     )}
 
                     {items.length > 0 && (
+                      <>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-600)", marginBottom: 6 }}>
+                        Položky kalkulace
+                      </div>
                       <table className="table" style={{ marginBottom: 10 }}>
                         <thead>
                           <tr>
@@ -1597,8 +1601,21 @@ export default function DealDetailPage() {
                           )}
                         </tbody>
                       </table>
+                      </>
                     )}
 
+                    <div
+                      style={{
+                        background: "var(--paper-50)",
+                        border: "1px solid var(--paper-200)",
+                        borderRadius: 10,
+                        padding: "12px 14px",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-600)", marginBottom: 10 }}>
+                        + Přidat položku
+                      </div>
                     {form.category === "Materiál" && woodSpeciesList.length > 0 && (
                       <div
                         style={{
@@ -1701,6 +1718,7 @@ export default function DealDetailPage() {
                       >
                         + Přidat
                       </button>
+                    </div>
                     </div>
 
                     <div
