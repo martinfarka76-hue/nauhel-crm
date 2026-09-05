@@ -75,6 +75,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState(null);
 
   function loadAll(filter) {
@@ -110,12 +111,23 @@ export default function DocumentsPage() {
     return companies[deal.company_id] || null;
   }
 
+  const filteredDocuments = documents.filter((doc) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    const deal = deals[doc.deal_id];
+    const company = companyForDeal(doc.deal_id);
+    return (
+      (company ? company.name.toLowerCase().includes(q) : false) ||
+      (deal ? deal.name.toLowerCase().includes(q) : false)
+    );
+  });
+
   return (
     <ProtectedShell>
       <h1 className="page-title">Dokumenty</h1>
       <p className="page-subtitle">Nabídky, objednávky, faktury a dodací listy napříč všemi případy</p>
 
-      <div style={{ marginBottom: 18 }}>
+      <div style={{ marginBottom: 18, display: "flex", gap: 10 }}>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
@@ -128,13 +140,26 @@ export default function DocumentsPage() {
             </option>
           ))}
         </select>
+        <input
+          type="text"
+          placeholder="Hledat podle firmy nebo obchodního případu…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            padding: "6px 10px",
+            fontSize: 13,
+            borderRadius: 6,
+            border: "1px solid var(--line)",
+            width: 320,
+          }}
+        />
       </div>
 
       {error && <div className="error-banner">{error}</div>}
 
       {loading ? (
         <div className="empty-state">Načítám…</div>
-      ) : documents.length === 0 ? (
+      ) : filteredDocuments.length === 0 ? (
         <div className="empty-state">Žádné dokumenty neodpovídají filtru.</div>
       ) : (
         <table className="table">
@@ -148,7 +173,7 @@ export default function DocumentsPage() {
             </tr>
           </thead>
           <tbody>
-            {documents.map((doc) => {
+            {filteredDocuments.map((doc) => {
               const deal = deals[doc.deal_id];
               const company = companyForDeal(doc.deal_id);
               return (

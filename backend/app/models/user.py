@@ -21,6 +21,7 @@ class User(Base):
     full_name = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.OBCHODNIK)
     is_active = Column(Boolean, nullable=False, default=True)
+    avatar_filename = Column(String(255), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

@@ -64,6 +64,7 @@ export default function ContactsPage() {
   const [companies, setCompanies] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     Promise.all([api.get("/contacts"), api.get("/companies")])
@@ -77,12 +78,42 @@ export default function ContactsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const filteredContacts = contacts.filter((c) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    const company = companies[c.company_id];
+    return (
+      `${c.first_name} ${c.last_name}`.toLowerCase().includes(q) ||
+      (c.email || "").toLowerCase().includes(q) ||
+      (c.phone || "").toLowerCase().includes(q) ||
+      (company ? company.name.toLowerCase().includes(q) : false)
+    );
+  });
+
   return (
     <ProtectedShell>
       <h1 className="page-title">Kontakty</h1>
       <p className="page-subtitle">Kontaktní osoby napříč všemi firmami</p>
 
       {error && <div className="error-banner">{error}</div>}
+
+      {!loading && contacts.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <input
+            type="text"
+            placeholder="Hledat podle jména, emailu, telefonu nebo firmy…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              padding: "8px 12px",
+              fontSize: 13,
+              borderRadius: 8,
+              border: "1px solid var(--paper-200)",
+              width: 340,
+            }}
+          />
+        </div>
+      )}
 
       {loading ? (
         <div className="empty-state">Načítám…</div>
@@ -102,7 +133,7 @@ export default function ContactsPage() {
             </tr>
           </thead>
           <tbody>
-            {contacts.map((c) => {
+            {filteredContacts.map((c) => {
               const company = companies[c.company_id];
               return (
                 <tr

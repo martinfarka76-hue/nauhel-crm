@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
 import { DEAL_STATUSES, STATUS_COLORS } from "@/lib/constants";
 
 const PAGE_SIZE = 50;
@@ -11,6 +13,52 @@ function formatPrice(price) {
   if (price === null || price === undefined) return "—";
   const n = Math.round(Number(price));
   return n.toLocaleString("cs-CZ") + " Kč";
+}
+
+function hexToRgba(hex, alpha) {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function OwnerAvatar({ user }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  if (!user) return null;
+  const initial = user.full_name ? user.full_name.charAt(0).toUpperCase() : "?";
+
+  if (user.avatar_filename && !imgFailed) {
+    return (
+      <img
+        src={`${API_URL}/users/${user.id}/avatar`}
+        alt=""
+        onError={() => setImgFailed(true)}
+        title={user.full_name}
+        style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <span
+      title={user.full_name}
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: "50%",
+        flexShrink: 0,
+        background: "var(--ember-500)",
+        color: "#fff",
+        fontSize: 10.5,
+        fontWeight: 700,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {initial}
+    </span>
+  );
 }
 
 function formatDateShort(dateStr) {
@@ -55,6 +103,7 @@ export default function DashboardPage() {
   const [companyWebsites, setCompanyWebsites] = useState({});
   const [users, setUsers] = useState([]);
   const [usersById, setUsersById] = useState({});
+  const [usersFullById, setUsersFullById] = useState({});
   const [stageProbabilities, setStageProbabilities] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -65,6 +114,8 @@ export default function DashboardPage() {
   const [invoiceDateTo, setInvoiceDateTo] = useState("");
 
   const [viewMode, setViewMode] = useState("kanban"); // "kanban" | "list"
+  const [searchQuery, setSearchQuery] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("");
   const [sortKey, setSortKey] = useState("created_at");
   const [sortDir, setSortDir] = useState("desc"); // "asc" | "desc"
   const [page, setPage] = useState(1);
@@ -101,6 +152,9 @@ export default function DashboardPage() {
         const usersMap = {};
         usersData.forEach((u) => (usersMap[u.id] = u.full_name));
         setUsersById(usersMap);
+        const usersFullMap = {};
+        usersData.forEach((u) => (usersFullMap[u.id] = u));
+        setUsersFullById(usersFullMap);
         setNewDealForm((prev) => ({ ...prev, owner_user_id: prev.owner_user_id || me.id }));
       })
       .catch((err) => setError(err.message))
@@ -158,6 +212,12 @@ export default function DashboardPage() {
       if (invoiceDateFrom && deal.expected_invoice_date < invoiceDateFrom) return false;
       if (invoiceDateTo && deal.expected_invoice_date > invoiceDateTo) return false;
     }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const companyName = (companies[deal.company_id] || "").toLowerCase();
+      if (!deal.name.toLowerCase().includes(q) && !companyName.includes(q)) return false;
+    }
+    if (ownerFilter && deal.owner_user_id !== ownerFilter) return false;
     return true;
   }
 
@@ -287,11 +347,19 @@ export default function DashboardPage() {
                 padding: "6px 14px",
                 fontSize: 13,
                 cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
                 background: viewMode === "kanban" ? "#fff" : "transparent",
                 fontWeight: viewMode === "kanban" ? 600 : 400,
                 color: viewMode === "kanban" ? "var(--ink-900)" : "var(--ink-600)",
               }}
             >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="18" rx="1" />
+                <rect x="14" y="3" width="7" height="10" rx="1" />
+                <rect x="14" y="16" width="7" height="5" rx="1" />
+              </svg>
               Mřížka
             </button>
             <button
@@ -302,11 +370,19 @@ export default function DashboardPage() {
                 padding: "6px 14px",
                 fontSize: 13,
                 cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
                 background: viewMode === "list" ? "#fff" : "transparent",
                 fontWeight: viewMode === "list" ? 600 : 400,
                 color: viewMode === "list" ? "var(--ink-900)" : "var(--ink-600)",
               }}
             >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="18" x2="20" y2="18" />
+              </svg>
               Seznam
             </button>
           </div>
@@ -416,6 +492,56 @@ export default function DashboardPage() {
           fontSize: 12.5,
         }}
       >
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--ink-400)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)" }}
+          >
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Hledat případ nebo firmu…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              padding: "6px 10px 6px 30px",
+              fontSize: 12.5,
+              borderRadius: 7,
+              border: "1px solid var(--paper-200)",
+              width: 220,
+            }}
+          />
+        </div>
+        <span style={{ color: "var(--paper-200)" }}>|</span>
+        <span style={{ color: "var(--ink-400)" }}>Vlastník</span>
+        <select
+          value={ownerFilter}
+          onChange={(e) => setOwnerFilter(e.target.value)}
+          style={{
+            padding: "6px 8px",
+            fontSize: 12.5,
+            borderRadius: 7,
+            border: "1px solid var(--paper-200)",
+            color: "var(--ink-900)",
+          }}
+        >
+          <option value="">Všichni</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.full_name}
+            </option>
+          ))}
+        </select>
+        <span style={{ color: "var(--paper-200)" }}>|</span>
         <span style={{ color: "var(--ink-400)" }}>Uzavření</span>
         <input
           type="date"
@@ -536,7 +662,14 @@ export default function DashboardPage() {
             const { total, weighted } = columnTotals(statusDeals, status);
             return (
               <div className="kanban-col" key={status}>
-                <div className="kanban-col-header">
+                <div
+                  className="kanban-col-header"
+                  style={{
+                    background: hexToRgba(STATUS_COLORS[status], 0.14),
+                    borderRadius: 100,
+                    padding: "6px 12px",
+                  }}
+                >
                   <span className="kanban-col-dot" style={{ background: STATUS_COLORS[status] }} />
                   <span className="kanban-col-title">{status}</span>
                   <span className="kanban-col-count">{statusDeals.length}</span>
@@ -551,7 +684,7 @@ export default function DashboardPage() {
                         key={deal.id}
                         href={`/deals/${deal.id}`}
                         className="deal-card"
-                        style={{ borderLeftColor: STATUS_COLORS[status], display: "block" }}
+                        style={{ display: "block" }}
                       >
                         <div className="deal-card-top">
                           {domain ? (
@@ -594,11 +727,49 @@ export default function DashboardPage() {
                             {deal.owner_user_id && usersById[deal.owner_user_id] && (
                               <div className="deal-card-meta-row">
                                 <span className="deal-card-meta-label">Vlastník</span>
-                                <span style={{ color: "var(--ember-600)", fontWeight: 600 }}>
-                                  {usersById[deal.owner_user_id]}
+                                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                  <OwnerAvatar user={usersFullById[deal.owner_user_id]} />
+                                  <span style={{ color: "var(--ember-600)", fontWeight: 600 }}>
+                                    {usersById[deal.owner_user_id]}
+                                  </span>
                                 </span>
                               </div>
                             )}
+                          </div>
+                        )}
+                        {deal.sharepoint_folder_url && (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "flex-end",
+                              marginTop: 8,
+                              paddingTop: 8,
+                              borderTop: "1px solid var(--paper-200)",
+                            }}
+                          >
+                            <span
+                              role="button"
+                              title="Otevřít složku na SharePointu"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.open(deal.sharepoint_folder_url, "_blank", "noopener,noreferrer");
+                              }}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: 24,
+                                height: 24,
+                                borderRadius: 6,
+                                color: "var(--ink-400)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 7a2 2 0 0 1 2-2h3l2 2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+                              </svg>
+                            </span>
                           </div>
                         )}
                       </a>

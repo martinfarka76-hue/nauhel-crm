@@ -64,6 +64,7 @@ export default function CompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [form, setForm] = useState({ name: "", ico: "", dic: "", website: "", address: "" });
   const [saving, setSaving] = useState(false);
   const [aresLoading, setAresLoading] = useState(false);
@@ -197,6 +198,24 @@ export default function CompaniesPage() {
         </div>
       )}
 
+      {!loading && companies.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <input
+            type="text"
+            placeholder="Hledat podle názvu, IČO nebo adresy…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              padding: "8px 12px",
+              fontSize: 13,
+              borderRadius: 8,
+              border: "1px solid var(--paper-200)",
+              width: 320,
+            }}
+          />
+        </div>
+      )}
+
       {loading ? (
         <div className="empty-state">Načítám…</div>
       ) : companies.length === 0 ? (
@@ -211,7 +230,17 @@ export default function CompaniesPage() {
             </tr>
           </thead>
           <tbody>
-            {companies.map((c) => (
+            {companies
+              .filter((c) => {
+                if (!searchQuery.trim()) return true;
+                const q = searchQuery.trim().toLowerCase();
+                return (
+                  c.name.toLowerCase().includes(q) ||
+                  (c.ico || "").toLowerCase().includes(q) ||
+                  (c.address || "").toLowerCase().includes(q)
+                );
+              })
+              .map((c) => (
               <tr
                 key={c.id}
                 className="clickable"

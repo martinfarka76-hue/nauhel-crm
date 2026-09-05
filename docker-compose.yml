@@ -51,6 +51,7 @@ services:
       - ./backend:/app
       - ./data/uploads:/app/uploads
       - ./data/invoices:/app/data/invoices
+      - ./data/avatars:/app/data/avatars
       - ./data/attachments:/app/data/attachments
       - ./data/delivery_notes:/app/data/delivery_notes
     depends_on:

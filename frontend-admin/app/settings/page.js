@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
+
+function getAuthToken() {
+  return typeof window !== "undefined" ? localStorage.getItem("nauhel_token") : null;
+}
+
 const emptySpeciesForm = {
   name: "",
   width_mm: "",
@@ -17,12 +23,55 @@ const emptySpeciesForm = {
 
 const emptyUserForm = { email: "", full_name: "", password: "", role: "Obchodník" };
 
+function UserAvatar({ user, size = 32 }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const initial = user.full_name ? user.full_name.charAt(0).toUpperCase() : "?";
+
+  if (user.avatar_filename && !imgFailed) {
+    return (
+      <img
+        src={`${API_URL}/users/${user.id}/avatar?v=${user.avatar_filename}`}
+        alt=""
+        onError={() => setImgFailed(true)}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          objectFit: "cover",
+          flexShrink: 0,
+          border: "1px solid var(--paper-200)",
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        flexShrink: 0,
+        background: "var(--ember-500)",
+        color: "#fff",
+        fontSize: size * 0.45,
+        fontWeight: 700,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {initial}
+    </span>
+  );
+}
+
 export default function SettingsPage() {
   const [species, setSpecies] = useState([]);
   const [parameters, setParameters] = useState([]);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [uploadingAvatarId, setUploadingAvatarId] = useState(null);
 
   const [showSpeciesForm, setShowSpeciesForm] = useState(false);
   const [speciesForm, setSpeciesForm] = useState(emptySpeciesForm);
@@ -86,6 +135,30 @@ export default function SettingsPage() {
       loadAll();
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function handleUploadAvatar(userId, file) {
+    if (!file) return;
+    setUploadingAvatarId(userId);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${API_URL}/users/${userId}/avatar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Nahrání fotky selhalo.");
+      }
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingAvatarId(null);
     }
   }
 
@@ -236,6 +309,7 @@ export default function SettingsPage() {
             <table className="table">
               <thead>
                 <tr>
+                  <th></th>
                   <th>Jméno</th>
                   <th>Email</th>
                   <th>Role</th>
@@ -247,6 +321,9 @@ export default function SettingsPage() {
                 {users.map((u) =>
                   editingUserId === u.id ? (
                     <tr key={u.id}>
+                      <td>
+                        <UserAvatar user={u} />
+                      </td>
                       <td>
                         <input
                           value={editUserForm.full_name}
@@ -285,6 +362,40 @@ export default function SettingsPage() {
                     </tr>
                   ) : (
                     <tr key={u.id}>
+                      <td>
+                        <div style={{ position: "relative", width: 32, height: 32 }}>
+                          <UserAvatar user={u} />
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            id={`avatar-upload-${u.id}`}
+                            style={{ display: "none" }}
+                            onChange={(e) => handleUploadAvatar(u.id, e.target.files[0])}
+                          />
+                          <label
+                            htmlFor={`avatar-upload-${u.id}`}
+                            title="Nahrát fotku"
+                            style={{
+                              position: "absolute",
+                              bottom: -2,
+                              right: -2,
+                              width: 14,
+                              height: 14,
+                              borderRadius: "50%",
+                              background: "var(--char-950)",
+                              color: "#fff",
+                              fontSize: 9,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              border: "1.5px solid #fff",
+                            }}
+                          >
+                            {uploadingAvatarId === u.id ? "…" : "✎"}
+                          </label>
+                        </div>
+                      </td>
                       <td style={{ fontWeight: 600 }}>{u.full_name}</td>
                       <td style={{ color: "var(--ink-600)" }}>{u.email}</td>
                       <td>{u.role}</td>
