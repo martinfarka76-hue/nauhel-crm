@@ -102,7 +102,7 @@ def generate_delivery_note_pdf(
           <div class="company-name">NAUHEL s.r.o.</div>
           <div class="company-info">
             Ve Mlejnku 108, 257 65 Čechtice<br>
-            IČO: 24463973<br>
+            IČO: 24463973 · DIČ: CZ24463973<br>
             info@nauhel.cz · +420 605 457 927 · www.nauhel.cz
           </div>
         </div>

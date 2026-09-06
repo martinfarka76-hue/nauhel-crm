@@ -23,6 +23,37 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function FilterChip({ label, children }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "6px 12px",
+        background: "#fff",
+        border: "1px solid var(--paper-200)",
+        borderRadius: 8,
+        fontSize: 12.5,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          color: "var(--ink-400)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 function OwnerAvatar({ user }) {
   const [imgFailed, setImgFailed] = useState(false);
   if (!user) return null;
@@ -479,177 +510,139 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          gap: 14,
-          alignItems: "center",
-          marginBottom: 16,
-          padding: "9px 14px",
-          background: "var(--paper-50)",
-          border: "1px solid var(--paper-200)",
-          borderRadius: 10,
-          fontSize: 12.5,
-        }}
-      >
-        <div style={{ position: "relative", flexShrink: 0 }}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--ink-400)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)" }}
-          >
-            <circle cx="11" cy="11" r="7" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Hledat případ nebo firmu…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              padding: "6px 10px 6px 30px",
-              fontSize: 12.5,
-              borderRadius: 7,
-              border: "1px solid var(--paper-200)",
-              width: 220,
-            }}
-          />
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <div style={{ position: "relative" }}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--ink-400)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)" }}
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Hledat případ nebo firmu…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: "7px 10px 7px 30px",
+                fontSize: 12.5,
+                borderRadius: 8,
+                border: "1px solid var(--paper-200)",
+                width: 260,
+              }}
+            />
+          </div>
+          {viewMode === "list" && (
+            <button
+              onClick={handleExportCsv}
+              style={{
+                marginLeft: "auto",
+                background: "none",
+                border: "1px solid var(--line)",
+                borderRadius: 6,
+                padding: "6px 12px",
+                fontSize: 12.5,
+                color: "var(--ink-600)",
+                cursor: "pointer",
+              }}
+            >
+              Export do Excelu (CSV)
+            </button>
+          )}
         </div>
-        <span style={{ color: "var(--paper-200)" }}>|</span>
-        <span style={{ color: "var(--ink-400)" }}>Vlastník</span>
-        <select
-          value={ownerFilter}
-          onChange={(e) => setOwnerFilter(e.target.value)}
-          style={{
-            padding: "6px 8px",
-            fontSize: 12.5,
-            borderRadius: 7,
-            border: "1px solid var(--paper-200)",
-            color: "var(--ink-900)",
-          }}
-        >
-          <option value="">Všichni</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.full_name}
-            </option>
-          ))}
-        </select>
-        <span style={{ color: "var(--paper-200)" }}>|</span>
-        <span style={{ color: "var(--ink-400)" }}>Uzavření</span>
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => {
-            setDateFrom(e.target.value);
-            setPage(1);
-          }}
-          style={{
-            border: "1px solid var(--paper-200)",
-            borderRadius: 5,
-            padding: "3px 6px",
-            fontSize: 12.5,
-            color: "var(--ink-600)",
-          }}
-        />
-        <span style={{ color: "var(--ink-400)" }}>–</span>
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => {
-            setDateTo(e.target.value);
-            setPage(1);
-          }}
-          style={{
-            border: "1px solid var(--paper-200)",
-            borderRadius: 5,
-            padding: "3px 6px",
-            fontSize: 12.5,
-            color: "var(--ink-600)",
-          }}
-        />
 
-        <span style={{ color: "var(--paper-200)" }}>|</span>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <FilterChip label="Vlastník">
+            <select
+              value={ownerFilter}
+              onChange={(e) => setOwnerFilter(e.target.value)}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-900)", background: "transparent" }}
+            >
+              <option value="">Všichni</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name}
+                </option>
+              ))}
+            </select>
+          </FilterChip>
 
-        <span style={{ color: "var(--ink-400)" }}>Fakturace</span>
-        <input
-          type="date"
-          value={invoiceDateFrom}
-          onChange={(e) => {
-            setInvoiceDateFrom(e.target.value);
-            setPage(1);
-          }}
-          style={{
-            border: "1px solid var(--paper-200)",
-            borderRadius: 5,
-            padding: "3px 6px",
-            fontSize: 12.5,
-            color: "var(--ink-600)",
-          }}
-        />
-        <span style={{ color: "var(--ink-400)" }}>–</span>
-        <input
-          type="date"
-          value={invoiceDateTo}
-          onChange={(e) => {
-            setInvoiceDateTo(e.target.value);
-            setPage(1);
-          }}
-          style={{
-            border: "1px solid var(--paper-200)",
-            borderRadius: 5,
-            padding: "3px 6px",
-            fontSize: 12.5,
-            color: "var(--ink-600)",
-          }}
-        />
+          <FilterChip label="Uzavření">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPage(1);
+              }}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent" }}
+            />
+            <span style={{ color: "var(--ink-400)" }}>–</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPage(1);
+              }}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent" }}
+            />
+          </FilterChip>
 
-        {hasDateFilter && (
-          <button
-            onClick={() => {
-              setDateFrom("");
-              setDateTo("");
-              setInvoiceDateFrom("");
-              setInvoiceDateTo("");
-              setPage(1);
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--ember-500)",
-              fontSize: 12.5,
-              cursor: "pointer",
-              textDecoration: "underline",
-              padding: 0,
-            }}
-          >
-            Zrušit filtr
-          </button>
-        )}
+          <FilterChip label="Fakturace">
+            <input
+              type="date"
+              value={invoiceDateFrom}
+              onChange={(e) => {
+                setInvoiceDateFrom(e.target.value);
+                setPage(1);
+              }}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent" }}
+            />
+            <span style={{ color: "var(--ink-400)" }}>–</span>
+            <input
+              type="date"
+              value={invoiceDateTo}
+              onChange={(e) => {
+                setInvoiceDateTo(e.target.value);
+                setPage(1);
+              }}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent" }}
+            />
+          </FilterChip>
 
-        {viewMode === "list" && (
-          <button
-            onClick={handleExportCsv}
-            style={{
-              marginLeft: "auto",
-              background: "none",
-              border: "1px solid var(--line)",
-              borderRadius: 6,
-              padding: "4px 10px",
-              fontSize: 12.5,
-              color: "var(--ink-600)",
-              cursor: "pointer",
-            }}
-          >
-            Export do Excelu (CSV)
-          </button>
-        )}
+          {hasDateFilter && (
+            <button
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+                setInvoiceDateFrom("");
+                setInvoiceDateTo("");
+                setPage(1);
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--ember-500)",
+                fontSize: 12.5,
+                cursor: "pointer",
+                textDecoration: "underline",
+                padding: 0,
+              }}
+            >
+              Zrušit filtr
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}

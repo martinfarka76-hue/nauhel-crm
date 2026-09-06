@@ -758,6 +758,16 @@ export default function DealDetailPage() {
           action: () => handleTransition("Kvalifikovaný lead"),
         };
       }
+      if (!deal.contact_id) {
+        return {
+          title: "Nastavte zodpovědnou osobu",
+          description:
+            "Kalkulace je připravená, ale chybí zodpovědná osoba (kontakt) - bez ní by zákazníkovi " +
+            "nepřišly e-maily s nabídkou, objednávkou ani fakturou.",
+          actionLabel: "Upravit případ",
+          action: startEditDeal,
+        };
+      }
       return {
         title: "Vytvořte nabídku pro zákazníka",
         description:
@@ -1661,14 +1671,14 @@ export default function DealDetailPage() {
 
                     <div
                       style={{
-                        display: "grid",
-                        gridTemplateColumns: "110px 1.5fr 80px 90px 100px auto",
-                        gap: 6,
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
                         alignItems: "end",
                         marginBottom: 10,
                       }}
                     >
-                      <div className="field" style={{ marginBottom: 0 }}>
+                      <div className="field" style={{ marginBottom: 0, width: 120, flexShrink: 0 }}>
                         <label>Kategorie</label>
                         <select
                           value={form.category}
@@ -1681,39 +1691,48 @@ export default function DealDetailPage() {
                           ))}
                         </select>
                       </div>
-                      <div className="field" style={{ marginBottom: 0 }}>
+                      <div className="field" style={{ marginBottom: 0, flex: "2 1 180px" }}>
                         <label>Název položky</label>
-                        <input value={form.name} onChange={(e) => setItemForm(c.id, { name: e.target.value })} />
+                        <input value={form.name} onChange={(e) => setItemForm(c.id, { name: e.target.value })} style={{ width: "100%" }} />
                       </div>
-                      <div className="field" style={{ marginBottom: 0 }}>
+                      <div className="field" style={{ marginBottom: 0, width: 80, flexShrink: 0 }}>
                         <label>Jednotka</label>
                         <input
                           value={form.unit}
                           onChange={(e) => setItemForm(c.id, { unit: e.target.value })}
                           placeholder="m²"
+                          style={{ width: "100%" }}
                         />
                       </div>
-                      <div className="field" style={{ marginBottom: 0 }}>
+                      <div className="field" style={{ marginBottom: 0, width: 100, flexShrink: 0 }}>
                         <label>Množství</label>
                         <input
                           type="number"
                           step="0.01"
                           value={form.quantity}
                           onChange={(e) => setItemForm(c.id, { quantity: e.target.value })}
+                          style={{ width: "100%" }}
                         />
                       </div>
-                      <div className="field" style={{ marginBottom: 0 }}>
+                      <div className="field" style={{ marginBottom: 0, width: 110, flexShrink: 0 }}>
                         <label>Jedn. cena</label>
                         <input
                           type="number"
                           step="0.01"
                           value={form.unit_price}
                           onChange={(e) => setItemForm(c.id, { unit_price: e.target.value })}
+                          style={{ width: "100%" }}
                         />
                       </div>
                       <button
                         className="btn"
-                        style={{ background: "var(--success)", color: "#fff", border: "none" }}
+                        style={{
+                          background: "var(--success)",
+                          color: "#fff",
+                          border: "none",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
                         onClick={() => handleAddItem(c.id)}
                       >
                         + Přidat
@@ -1997,20 +2016,36 @@ export default function DealDetailPage() {
       {/* --- Poznámky --- */}
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ fontWeight: 600, marginBottom: 10 }}>Poznámky</div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          <input
-            type="text"
+        <div style={{ marginBottom: 14 }}>
+          <textarea
             placeholder="Přidat poznámku…"
             value={newNoteText}
             onChange={(e) => setNewNoteText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleAddNote();
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAddNote();
             }}
-            style={{ flex: 1, padding: "8px 12px", fontSize: 13, borderRadius: 8, border: "1px solid var(--paper-200)" }}
+            rows={2}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              fontSize: 13,
+              borderRadius: 8,
+              border: "1px solid var(--paper-200)",
+              resize: "vertical",
+              fontFamily: "inherit",
+              marginBottom: 8,
+            }}
           />
-          <button className="btn btn-primary" onClick={handleAddNote} disabled={addingNote || !newNoteText.trim()}>
-            {addingNote ? "Přidávám…" : "Přidat"}
-          </button>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              className="btn btn-primary"
+              style={{ padding: "6px 16px", fontSize: 12.5 }}
+              onClick={handleAddNote}
+              disabled={addingNote || !newNoteText.trim()}
+            >
+              {addingNote ? "Přidávám…" : "Přidat poznámku"}
+            </button>
+          </div>
         </div>
         {notes.length === 0 ? (
           <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné poznámky</div>

@@ -205,7 +205,7 @@ export default function DocumentsPage() {
                   </td>
                   <td style={{ color: "var(--ink-600)" }}>{formatDate(doc.created_at)}</td>
                   <td>
-                    {doc.document_type === "Nabídka" && (
+                    {(doc.document_type === "Nabídka" || doc.document_type === "Objednávka") && (
                       <button
                         className="btn btn-secondary"
                         style={{ padding: "4px 10px", fontSize: 12 }}

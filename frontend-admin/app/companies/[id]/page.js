@@ -21,6 +21,7 @@ export default function CompanyDetailPage() {
   const [contacts, setContacts] = useState([]);
   const [deals, setDeals] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState(null);
 
@@ -30,6 +31,7 @@ export default function CompanyDetailPage() {
     price: "",
     expected_close_date: "",
     expected_invoice_date: "",
+    owner_user_id: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -47,17 +49,28 @@ export default function CompanyDetailPage() {
       api.get(`/contacts?company_id=${id}`),
       api.get(`/deals?company_id=${id}`),
       api.get(`/documents?company_id=${id}`),
+      api.get(`/users`),
     ])
-      .then(([c, ct, d, docs]) => {
+      .then(([c, ct, d, docs, usersData]) => {
         setCompany(c);
         setContacts(ct);
         setDeals(d);
         setDocuments(docs);
+        setUsers(usersData);
       })
       .catch((err) => setError(err.message));
   }
 
   useEffect(loadAll, [id]);
+
+  useEffect(() => {
+    api
+      .get("/auth/me")
+      .then((me) => {
+        setDealForm((prev) => ({ ...prev, owner_user_id: prev.owner_user_id || me.id }));
+      })
+      .catch(() => {});
+  }, []);
 
   function handleCopyLink(accessToken, docId) {
     const url = `${PUBLIC_URL}/n/${accessToken}`;
@@ -84,8 +97,15 @@ export default function CompanyDetailPage() {
         price: dealForm.price ? Number(dealForm.price) : null,
         expected_close_date: dealForm.expected_close_date || null,
         expected_invoice_date: dealForm.expected_invoice_date || null,
+        owner_user_id: dealForm.owner_user_id || null,
       });
-      setDealForm({ name: "", price: "", expected_close_date: "", expected_invoice_date: "" });
+      setDealForm({
+        name: "",
+        price: "",
+        expected_close_date: "",
+        expected_invoice_date: "",
+        owner_user_id: dealForm.owner_user_id,
+      });
       setShowDealForm(false);
       loadAll();
     } catch (err) {
@@ -459,6 +479,19 @@ export default function CompanyDetailPage() {
                 value={dealForm.name}
                 onChange={(e) => setDealForm({ ...dealForm, name: e.target.value })}
               />
+            </div>
+            <div className="field">
+              <label>Vlastník případu</label>
+              <select
+                value={dealForm.owner_user_id}
+                onChange={(e) => setDealForm({ ...dealForm, owner_user_id: e.target.value })}
+              >
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.full_name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="field">
               <label>Odhadovaná cena (Kč)</label>

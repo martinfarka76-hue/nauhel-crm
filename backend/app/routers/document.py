@@ -90,6 +90,16 @@ def create_document(
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
 
+    if payload.document_type == DocumentType.NABIDKA and not deal.contact_id:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Vytvoření nabídky vyžaduje vyplněnou zodpovědnou osobu (kontakt) - bez ní by "
+                'zákazníkovi nepřišly e-maily s nabídkou, objednávkou ani fakturou. Nastav ji '
+                'v editaci případu (menu "⋯" nahoře).'
+            ),
+        )
+
     document = Document(deal_id=deal_id, **payload.model_dump())
     db.add(document)
 

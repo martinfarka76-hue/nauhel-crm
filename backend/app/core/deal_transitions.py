@@ -77,6 +77,16 @@ def perform_transition(db: Session, deal: Deal, to_status: DealStatus) -> Deal:
     # Zároveň vytvoří složku zakázky na SharePointu (podle šablony), pokud ji
     # Deal ještě nemá - PDF nabídky se pak nahraje do její podsložky.
     if to_status == DealStatus.NABIDKA:
+        if not deal.contact_id:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Přechod do stavu 'Nabídka' vyžaduje vyplněnou zodpovědnou osobu (kontakt) - "
+                    "bez ní by zákazníkovi nepřišly e-maily s nabídkou, objednávkou ani fakturou. "
+                    "Nastav ji v editaci případu (menu \"⋯\" nahoře)."
+                ),
+            )
+
         create_sharepoint_folder_for_deal(db, deal)
 
         active_calc = (
