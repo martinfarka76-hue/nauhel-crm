@@ -26,6 +26,21 @@ function formatShortDate(iso) {
   return new Date(iso).toLocaleDateString("cs-CZ");
 }
 
+function NauhelLogo({ height = 18 }) {
+  return (
+    <svg height={height} viewBox="202.875 256.25 417.375 52.625" style={{ color: "#17140f", display: "block" }}>
+      <path transform="matrix(1,0,0,-1,365.4637,256.3749)" d="M0 0V-30.032C0-40.119 4.203-44.78 10.546-44.78 17.347-44.78 21.396-40.119 21.396-30.032V0H30.796V-29.42C30.796-45.315 22.619-52.345 10.24-52.345-1.681-52.345-9.399-45.697-9.399-29.497V0Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,238.6289,256.4994)" d="M0 0 .154-31.788-26.638-8.268-26.654-8.295-35.745 .082V-52.178H-26.324V-21.195L.214-44.259 .253-52.343 9.421-52.261V0Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,327.3455,308.8425)" d="M0 0-26.871 52.5-53.062 0H-42.078L-26.422 31.542-10.984 0Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,462.3477,256.4169)" d="M0 0V-22.064H-31.097V-31.484H0V-52.261H9.421V0Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,0,595.276)" d="M508.898 308.018H544.81607V317.439H508.898Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,0,595.276)" d="M508.898 329.438H544.81607V338.85899H508.898Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,0,595.276)" d="M508.898 286.556H544.81607V295.977H508.898Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,593.6667,299.2988)" d="M0 0V42.882H-9.421V0-9.379-9.421H26.497V0Z" fill="currentColor"/>
+    </svg>
+  );
+}
+
 export default function PublicOfferPage() {
   const { token } = useParams();
   const [state, setState] = useState("loading"); // loading | ready | not_found | error
@@ -152,7 +167,9 @@ export default function PublicOfferPage() {
   return (
     <div className="offer-shell">
       <div className="offer-header">
-        <div className="offer-brand">Nauhel</div>
+        <div className="offer-brand" style={{ marginBottom: 8 }}>
+          <NauhelLogo height={18} />
+        </div>
         <div className="offer-eyebrow">
           {offer.document_type} pro {offer.company_name}
           {offer.version > 1 ? ` · verze ${offer.version}` : ""}

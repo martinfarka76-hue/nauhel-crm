@@ -18,6 +18,21 @@ function BellIcon() {
   );
 }
 
+function NauhelLogo({ height = 16 }) {
+  return (
+    <svg height={height} viewBox="202.875 256.25 417.375 52.625" style={{ color: "var(--ember-500)", display: "block" }}>
+      <path transform="matrix(1,0,0,-1,365.4637,256.3749)" d="M0 0V-30.032C0-40.119 4.203-44.78 10.546-44.78 17.347-44.78 21.396-40.119 21.396-30.032V0H30.796V-29.42C30.796-45.315 22.619-52.345 10.24-52.345-1.681-52.345-9.399-45.697-9.399-29.497V0Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,238.6289,256.4994)" d="M0 0 .154-31.788-26.638-8.268-26.654-8.295-35.745 .082V-52.178H-26.324V-21.195L.214-44.259 .253-52.343 9.421-52.261V0Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,327.3455,308.8425)" d="M0 0-26.871 52.5-53.062 0H-42.078L-26.422 31.542-10.984 0Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,462.3477,256.4169)" d="M0 0V-22.064H-31.097V-31.484H0V-52.261H9.421V0Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,0,595.276)" d="M508.898 308.018H544.81607V317.439H508.898Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,0,595.276)" d="M508.898 329.438H544.81607V338.85899H508.898Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,0,595.276)" d="M508.898 286.556H544.81607V295.977H508.898Z" fill="currentColor"/>
+      <path transform="matrix(1,0,0,-1,593.6667,299.2988)" d="M0 0V42.882H-9.421V0-9.379-9.421H26.497V0Z" fill="currentColor"/>
+    </svg>
+  );
+}
+
 function DashboardIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -186,10 +201,12 @@ export default function ProtectedShell({ children }) {
   return (
     <div className="app-shell">
       <aside className="sidebar" style={{ position: "relative" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 }}>
-          <div className="sidebar-brand" style={{ marginBottom: 0 }}>NAUHEL CRM</div>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 4 }}>
+          <div className="sidebar-brand" style={{ marginBottom: 0, flexShrink: 0 }}>
+            <NauhelLogo height={14} />
+          </div>
 
-          <div ref={panelRef} style={{ position: "relative" }}>
+          <div ref={panelRef} style={{ position: "relative", flexShrink: 0 }}>
             <button
               onClick={togglePanel}
               aria-label="Notifikace"

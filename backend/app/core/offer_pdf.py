@@ -7,6 +7,8 @@ from decimal import Decimal
 
 from weasyprint import HTML
 
+from app.core.branding import LOGO_DATA_URI_BLACK
+
 from app.models.document import Document
 from app.models.deal import Deal
 from app.models.company import Company
@@ -78,6 +80,7 @@ def generate_offer_pdf(document: Document, deal: Deal, company: Company, calc: C
     </style>
     </head>
     <body>
+      <img src="{LOGO_DATA_URI_BLACK}" style="height:22px; margin-bottom:20px;">
       <div class="eyebrow">{document.document_type.value} pro {company.name}</div>
       <h1>{deal.name}</h1>
       <div class="stats">{stats_html}</div>

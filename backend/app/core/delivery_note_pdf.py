@@ -13,6 +13,8 @@ from datetime import date
 from weasyprint import HTML
 from sqlalchemy.orm import Session
 
+from app.core.branding import LOGO_DATA_URI_BLACK
+
 from app.models.deal import Deal
 from app.models.company import Company
 from app.models.contact import Contact
@@ -99,6 +101,7 @@ def generate_delivery_note_pdf(
     <body>
       <div class="header">
         <div>
+          <img src="{LOGO_DATA_URI_BLACK}" style="height:18px; margin-bottom:8px;">
           <div class="company-name">NAUHEL s.r.o.</div>
           <div class="company-info">
             Ve Mlejnku 108, 257 65 Čechtice<br>
