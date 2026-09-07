@@ -5,7 +5,7 @@ import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
-import { DEAL_STATUSES, STATUS_COLORS, getBadgeTextColor, hexToRgba } from "@/lib/constants";
+import { DEAL_STATUSES, STATUS_COLORS } from "@/lib/constants";
 
 const PAGE_SIZE = 50;
 
@@ -13,6 +13,14 @@ function formatPrice(price) {
   if (price === null || price === undefined) return "—";
   const n = Math.round(Number(price));
   return n.toLocaleString("cs-CZ") + " Kč";
+}
+
+function hexToRgba(hex, alpha) {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function FilterChip({ label, children }) {
@@ -669,98 +677,108 @@ export default function DashboardPage() {
                         key={deal.id}
                         href={`/deals/${deal.id}`}
                         className="deal-card"
-                        style={{ display: "block", borderLeft: `3px solid ${STATUS_COLORS[deal.status]}` }}
+                        style={{ display: "block" }}
                       >
-                        <div className="deal-card-top" style={{ justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            {domain ? (
-                              <>
-                                <img
-                                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
-                                  alt=""
-                                  className="deal-card-avatar-img"
-                                  onError={(e) => {
-                                    e.target.style.display = "none";
-                                    e.target.nextElementSibling.style.display = "flex";
-                                  }}
-                                />
-                                <span className="deal-card-avatar" style={{ display: "none" }}>
-                                  {initial}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="deal-card-avatar">{initial}</span>
-                            )}
-                            <span className="deal-card-company">{companyName}</span>
-                          </div>
-                          {deal.owner_user_id && usersById[deal.owner_user_id] && (
-                            <span title={usersById[deal.owner_user_id]}>
-                              <OwnerAvatar user={usersFullById[deal.owner_user_id]} />
-                            </span>
+                        <div className="deal-card-top">
+                          {domain ? (
+                            <>
+                              <img
+                                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                                alt=""
+                                className="deal-card-avatar-img"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                  e.target.nextElementSibling.style.display = "flex";
+                                }}
+                              />
+                              <span className="deal-card-avatar" style={{ display: "none" }}>
+                                {initial}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="deal-card-avatar">{initial}</span>
                           )}
+                          <span className="deal-card-company">{companyName}</span>
                         </div>
                         <div className="deal-card-name">{deal.name}</div>
                         <div className="deal-card-price mono">{formatPrice(deal.price)}</div>
 
-                        {(deal.expected_close_date || deal.sharepoint_folder_url) && (
-                          <div className="deal-card-footer">
-                            <span>
-                              {deal.expected_close_date
-                                ? `Uzavření ${formatDateShort(deal.expected_close_date)}`
-                                : ""}
-                            </span>
-                            {deal.sharepoint_folder_url && (
-                              <span
-                                role="button"
-                                title="Otevřít složku na SharePointu"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  window.open(deal.sharepoint_folder_url, "_blank", "noopener,noreferrer");
-                                }}
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: 6,
-                                  color: "var(--ink-400)",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M3 7a2 2 0 0 1 2-2h3l2 2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-                                </svg>
-                              </span>
+                        {(deal.expected_close_date || deal.expected_invoice_date || deal.owner_user_id) && (
+                          <div className="deal-card-meta">
+                            {deal.expected_close_date && (
+                              <div className="deal-card-meta-row">
+                                <span className="deal-card-meta-label">Uzavření</span>
+                                <span>{formatDateShort(deal.expected_close_date)}</span>
+                              </div>
                             )}
+                            {deal.expected_invoice_date && (
+                              <div className="deal-card-meta-row">
+                                <span className="deal-card-meta-label">Fakturace</span>
+                                <span>{formatDateShort(deal.expected_invoice_date)}</span>
+                              </div>
+                            )}
+                            {deal.owner_user_id && usersById[deal.owner_user_id] && (
+                              <div className="deal-card-meta-row">
+                                <span className="deal-card-meta-label">Vlastník</span>
+                                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                  <OwnerAvatar user={usersFullById[deal.owner_user_id]} />
+                                  <span style={{ color: "var(--ember-600)", fontWeight: 600 }}>
+                                    {usersById[deal.owner_user_id]}
+                                  </span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {deal.sharepoint_folder_url && (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "flex-end",
+                              marginTop: 8,
+                              paddingTop: 8,
+                              borderTop: "1px solid var(--paper-200)",
+                            }}
+                          >
+                            <span
+                              role="button"
+                              title="Otevřít složku na SharePointu"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.open(deal.sharepoint_folder_url, "_blank", "noopener,noreferrer");
+                              }}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: 24,
+                                height: 24,
+                                borderRadius: 6,
+                                color: "var(--ink-400)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 7a2 2 0 0 1 2-2h3l2 2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+                              </svg>
+                            </span>
                           </div>
                         )}
                       </a>
                     );
                   })}
                   {statusDeals.length === 0 && (
-                    <div
-                      style={{
-                        border: "1px dashed var(--paper-200)",
-                        borderRadius: 10,
-                        padding: "24px 12px",
-                        textAlign: "center",
-                        fontSize: 12,
-                        color: "var(--ink-400)",
-                      }}
-                    >
-                      Žádné případy
-                    </div>
+                    <div style={{ fontSize: 12, color: "var(--ink-400)", padding: "8px 2px" }}>Žádné případy</div>
                   )}
                 </div>
                 {statusDeals.length > 0 && (
                   <div className="kanban-col-totals">
-                    <div>
-                      Celkem: <strong className="mono">{formatPrice(total)}</strong>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Celkem:</span> <strong className="mono">{formatPrice(total)}</strong>
                     </div>
-                    <div>
-                      Vážený objem: <strong className="mono">{formatPrice(weighted)}</strong>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Vážený objem:</span> <strong className="mono">{formatPrice(weighted)}</strong>
                     </div>
                   </div>
                 )}
@@ -794,13 +812,7 @@ export default function DashboardPage() {
                       <td style={{ fontWeight: 600 }}>{deal.name}</td>
                       <td>{companies[deal.company_id] || "—"}</td>
                       <td>
-                        <span
-                          className="badge"
-                          style={{
-                            background: STATUS_COLORS[deal.status],
-                            color: getBadgeTextColor(STATUS_COLORS[deal.status]),
-                          }}
-                        >
+                        <span className="badge" style={{ background: STATUS_COLORS[deal.status] }}>
                           {deal.status}
                         </span>
                       </td>
