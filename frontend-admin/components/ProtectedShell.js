@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { isLoggedIn, clearToken, api } from "@/lib/api";
 
 function formatNotifDate(iso) {
@@ -337,7 +338,7 @@ export default function ProtectedShell({ children }) {
           100%FIRE 100% WOOD
         </div>
         {links.map((link) => (
-          <a
+          <Link
             key={link.href}
             href={link.href}
             className={`sidebar-link ${pathname === link.href ? "active" : ""}`}
@@ -345,7 +346,7 @@ export default function ProtectedShell({ children }) {
           >
             <link.Icon />
             {link.label}
-          </a>
+          </Link>
         ))}
 
         <div className="sidebar-footer">
