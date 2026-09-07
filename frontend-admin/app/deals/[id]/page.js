@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
-import { STATUS_COLORS, NEXT_MANUAL_STATUS, getBadgeTextColor } from "@/lib/constants";
+import { STATUS_COLORS, NEXT_MANUAL_STATUS, getBadgeTextColor, hexToRgba } from "@/lib/constants";
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
@@ -1123,8 +1123,8 @@ export default function DealDetailPage() {
       {guidance && (
         <div
           style={{
-            background: deal.status === "Ztraceno" ? "var(--paper-100)" : "#fdf3ec",
-            border: `1px solid ${deal.status === "Ztraceno" ? "var(--paper-200)" : "var(--ember-500)"}`,
+            background: deal.status === "Ztraceno" ? "var(--paper-100)" : hexToRgba(STATUS_COLORS[deal.status], 0.14),
+            border: `1px solid ${deal.status === "Ztraceno" ? "var(--paper-200)" : STATUS_COLORS[deal.status]}`,
             borderRadius: 12,
             padding: "18px 22px",
             marginBottom: 20,

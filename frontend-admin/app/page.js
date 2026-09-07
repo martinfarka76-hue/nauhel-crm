@@ -5,7 +5,7 @@ import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
-import { DEAL_STATUSES, STATUS_COLORS, getBadgeTextColor } from "@/lib/constants";
+import { DEAL_STATUSES, STATUS_COLORS, getBadgeTextColor, hexToRgba } from "@/lib/constants";
 
 const PAGE_SIZE = 50;
 
@@ -13,14 +13,6 @@ function formatPrice(price) {
   if (price === null || price === undefined) return "—";
   const n = Math.round(Number(price));
   return n.toLocaleString("cs-CZ") + " Kč";
-}
-
-function hexToRgba(hex, alpha) {
-  const h = hex.replace("#", "");
-  const r = parseInt(h.substring(0, 2), 16);
-  const g = parseInt(h.substring(2, 4), 16);
-  const b = parseInt(h.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function FilterChip({ label, children }) {
