@@ -1798,7 +1798,22 @@ export default function DealDetailPage() {
           </button>
         </div>
         {documents.length === 0 ? (
-          <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádné dokumenty</div>
+          <div style={
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 6,
+                border: "1px dashed var(--paper-200)",
+                borderRadius: 10,
+                padding: "20px 12px",
+                textAlign: "center",
+              }>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+              <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z" />
+            </svg>
+            <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádné dokumenty</div>
+          </div>
         ) : (
           documents.map((d) => {
             const views = documentViews[d.id];
@@ -2065,7 +2080,22 @@ export default function DealDetailPage() {
           </div>
         </div>
         {notes.length === 0 ? (
-          <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné poznámky</div>
+          <div style={
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 6,
+                border: "1px dashed var(--paper-200)",
+                borderRadius: 10,
+                padding: "20px 12px",
+                textAlign: "center",
+              }>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné poznámky</div>
+          </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto" }}>
             {notes.map((n) => (
@@ -2125,7 +2155,21 @@ export default function DealDetailPage() {
         </div>
         {showAttachments &&
           (attachments.length === 0 ? (
-            <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné přílohy</div>
+            <div style={
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 6,
+                border: "1px dashed var(--paper-200)",
+                borderRadius: 10,
+                padding: "20px 12px",
+                textAlign: "center",
+              }>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+              <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné přílohy</div>
+            </div>
           ) : (
             attachments.map((a) => (
               <div
