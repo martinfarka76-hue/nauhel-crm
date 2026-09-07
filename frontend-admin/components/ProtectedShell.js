@@ -202,7 +202,17 @@ export default function ProtectedShell({ children }) {
   return (
     <div className="app-shell">
       <aside className="sidebar" style={{ position: "relative" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 16,
+            marginBottom: 14,
+            paddingBottom: 14,
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
           <div className="sidebar-brand" style={{ marginBottom: 0, flexShrink: 0 }}>
             <NauhelLogo height={14} />
           </div>
@@ -331,7 +341,7 @@ export default function ProtectedShell({ children }) {
             letterSpacing: "0.05em",
             color: "var(--ink-400)",
             paddingLeft: 10,
-            marginBottom: 26,
+            marginBottom: 20,
             whiteSpace: "nowrap",
           }}
         >
