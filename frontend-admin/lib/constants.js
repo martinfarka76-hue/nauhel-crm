@@ -23,12 +23,26 @@ export const NEXT_MANUAL_STATUS = {
 };
 
 export const STATUS_COLORS = {
-  Lead: "#8a8578",
-  "Kvalifikovaný lead": "#6d8a9c",
-  Nabídka: "#b5652d",
-  Objednávka: "#c1863f",
-  "Zálohová faktura": "#9c8a2d",
-  Vyrobeno: "#4f8a5b",
-  Fakturováno: "#2d6b4f",
-  Ztraceno: "#8a3d3d",
+  Lead: "#9ca3af",
+  "Kvalifikovaný lead": "#64748b",
+  Nabídka: "#e0b478",
+  Objednávka: "#b5652d",
+  "Zálohová faktura": "#7a3a1a",
+  Vyrobeno: "#2f6f4f",
+  Fakturováno: "#1f5c3a",
+  Ztraceno: "#a33b3b",
 };
+
+// Podle WCAG kontrastu spocita, jestli ma byt text na dane barve pozadi
+// bily nebo tmavy - resi spatnou citelnost bileho textu na svetlejsich
+// odstinech (napr. Nabidka #e0b478).
+export function getBadgeTextColor(hex) {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.substring(0, 2), 16) / 255;
+  const g = parseInt(c.substring(2, 4), 16) / 255;
+  const b = parseInt(c.substring(4, 6), 16) / 255;
+  const toLinear = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  const contrastWithWhite = 1.05 / (luminance + 0.05);
+  return contrastWithWhite >= 4.5 ? "#fff" : "var(--ink-900)";
+}

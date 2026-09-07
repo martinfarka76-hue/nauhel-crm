@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
-import { STATUS_COLORS, NEXT_MANUAL_STATUS } from "@/lib/constants";
+import { STATUS_COLORS, NEXT_MANUAL_STATUS, getBadgeTextColor } from "@/lib/constants";
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
@@ -906,7 +906,14 @@ export default function DealDetailPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span className="badge" style={{ background: STATUS_COLORS[deal.status], fontSize: 13 }}>
+          <span
+            className="badge"
+            style={{
+              background: STATUS_COLORS[deal.status],
+              color: getBadgeTextColor(STATUS_COLORS[deal.status]),
+              fontSize: 13,
+            }}
+          >
             {deal.status}
           </span>
           {!editingDeal && (
@@ -1299,6 +1306,9 @@ export default function DealDetailPage() {
             const items = calcItems[c.id] || [];
             const form = getItemForm(c.id);
             const isExpanded = !!expandedCalcs[c.id];
+            const versionNumber = [...calculations]
+              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+              .findIndex((x) => x.id === c.id) + 1;
             return (
               <div
                 key={c.id}
@@ -1331,10 +1341,17 @@ export default function DealDetailPage() {
                     >
                       {isExpanded ? "▾" : "▸"}
                     </span>
-                    <strong style={{ fontSize: 14 }}>
-                      {c.product_line || "—"} {c.wood_species ? `/ ${c.wood_species}` : ""}
-                    </strong>
-                    {c.is_active && <span className="badge" style={{ background: "var(--success)" }}>aktivní</span>}
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <strong style={{ fontSize: 14 }}>
+                          {c.product_line || "—"} {c.wood_species ? `/ ${c.wood_species}` : ""}
+                        </strong>
+                        {c.is_active && <span className="badge" style={{ background: "var(--success)" }}>aktivní</span>}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: "var(--ink-400)", marginTop: 2 }}>
+                        Kalkulace #{versionNumber} · {formatDate(c.created_at)}
+                      </div>
+                    </div>
                   </div>
                   <strong className="mono" style={{ fontSize: 14 }}>{money(c.price_with_vat)}</strong>
                 </div>

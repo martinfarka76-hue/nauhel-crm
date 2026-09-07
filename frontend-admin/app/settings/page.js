@@ -17,6 +17,7 @@ const emptySpeciesForm = {
   length_mm: "",
   thickness_mm: "",
   purchase_price_per_m2: "",
+  density_kg_per_m3: "",
   supplier: "",
   notes: "",
 };
@@ -173,6 +174,7 @@ export default function SettingsPage() {
         length_mm: speciesForm.length_mm ? Number(speciesForm.length_mm) : null,
         thickness_mm: speciesForm.thickness_mm ? Number(speciesForm.thickness_mm) : null,
         purchase_price_per_m2: speciesForm.purchase_price_per_m2 ? Number(speciesForm.purchase_price_per_m2) : null,
+        density_kg_per_m3: speciesForm.density_kg_per_m3 ? Number(speciesForm.density_kg_per_m3) : null,
         supplier: speciesForm.supplier || null,
         notes: speciesForm.notes || null,
       };
@@ -199,6 +201,7 @@ export default function SettingsPage() {
       length_mm: s.length_mm ?? "",
       thickness_mm: s.thickness_mm ?? "",
       purchase_price_per_m2: s.purchase_price_per_m2 ?? "",
+      density_kg_per_m3: s.density_kg_per_m3 ?? "",
       supplier: s.supplier || "",
       notes: s.notes || "",
     });
@@ -560,7 +563,7 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                   <div className="field">
                     <label>Nákupní cena/m² bez DPH (Kč)</label>
                     <input
@@ -568,6 +571,16 @@ export default function SettingsPage() {
                       step="0.01"
                       value={speciesForm.purchase_price_per_m2}
                       onChange={(e) => setSpeciesForm({ ...speciesForm, purchase_price_per_m2: e.target.value })}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Objemová hmotnost (kg/m³)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={speciesForm.density_kg_per_m3}
+                      onChange={(e) => setSpeciesForm({ ...speciesForm, density_kg_per_m3: e.target.value })}
+                      placeholder="např. 500"
                     />
                   </div>
                   <div className="field">
@@ -593,6 +606,7 @@ export default function SettingsPage() {
                     <th>Název</th>
                     <th>Rozměry (Š×T, délka)</th>
                     <th>Cena/m² bez DPH</th>
+                    <th>Hustota</th>
                     <th>Dodavatel</th>
                     <th></th>
                   </tr>
@@ -607,6 +621,9 @@ export default function SettingsPage() {
                       </td>
                       <td className="mono">
                         {s.purchase_price_per_m2 ? Number(s.purchase_price_per_m2).toLocaleString("cs-CZ") + " Kč" : "—"}
+                      </td>
+                      <td className="mono">
+                        {s.density_kg_per_m3 ? `${Number(s.density_kg_per_m3)} kg/m³` : "—"}
                       </td>
                       <td>{s.supplier || "—"}</td>
                       <td style={{ whiteSpace: "nowrap" }}>

@@ -11,6 +11,7 @@ class WoodSpeciesCreate(BaseModel):
     length_mm: Optional[Decimal] = None
     thickness_mm: Optional[Decimal] = None
     purchase_price_per_m2: Optional[Decimal] = None
+    density_kg_per_m3: Optional[Decimal] = None
     supplier: Optional[str] = None
     notes: Optional[str] = None
 
@@ -22,6 +23,7 @@ class WoodSpeciesUpdate(BaseModel):
     length_mm: Optional[Decimal] = None
     thickness_mm: Optional[Decimal] = None
     purchase_price_per_m2: Optional[Decimal] = None
+    density_kg_per_m3: Optional[Decimal] = None
     supplier: Optional[str] = None
     notes: Optional[str] = None
 
@@ -36,5 +38,6 @@ class WoodSpeciesOut(BaseModel):
     length_mm: Optional[Decimal]
     thickness_mm: Optional[Decimal]
     purchase_price_per_m2: Optional[Decimal]
+    density_kg_per_m3: Optional[Decimal]
     supplier: Optional[str]
     notes: Optional[str]

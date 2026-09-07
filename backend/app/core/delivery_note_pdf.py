@@ -8,6 +8,7 @@ vyplňuje ručně při fyzickém předání - necháváme prázdné/nezaškrtnut
 kromě "Kompletní dodávka", která je předzaškrtnutá.
 """
 import logging
+import math
 from datetime import date
 
 from weasyprint import HTML
@@ -21,6 +22,8 @@ from app.models.contact import Contact
 from app.models.user import User
 from app.models.calculation import Calculation
 from app.models.calculation_item import CalculationItem
+from app.models.wood_species import WoodSpecies
+from app.models.pricing_parameter import PricingParameter
 from app.models.enums import ItemCategory
 
 logger = logging.getLogger("nauhel_crm.delivery_note_pdf")
@@ -45,18 +48,71 @@ def generate_delivery_note_pdf(
         )
         material_items = [i for i in items if i.category == ItemCategory.MATERIAL]
 
+    pieces_per_package_param = db.query(PricingParameter).filter(PricingParameter.key == "pieces_per_package").first()
+    pieces_per_package = int(pieces_per_package_param.value) if pieces_per_package_param else 6
+
     items_rows = ""
+    total_weight_kg = 0.0
     for idx, item in enumerate(material_items, start=1):
+        pieces_str = "—"
+        packages_str = "—"
+        weight_str = "—"
+
+        species = None
+        if item.name:
+            species = db.query(WoodSpecies).filter(WoodSpecies.name == item.name).first()
+
+        if (
+            species
+            and species.width_effective_mm
+            and species.length_mm
+            and species.width_mm
+            and species.thickness_mm
+            and species.density_kg_per_m3
+        ):
+            coverage_m2_per_piece = float(species.width_effective_mm) / 1000 * float(species.length_mm) / 1000
+            if coverage_m2_per_piece > 0:
+                pieces = math.ceil(float(item.quantity) / coverage_m2_per_piece)
+                pieces_str = str(pieces)
+
+                packages = pieces // pieces_per_package
+                remainder = pieces % pieces_per_package
+                packages_str = f"{packages} bal."
+                if remainder > 0:
+                    packages_str += f" + {remainder} ks"
+
+                volume_m3 = (
+                    pieces
+                    * float(species.width_mm)
+                    * float(species.thickness_mm)
+                    * float(species.length_mm)
+                    / 1_000_000_000
+                )
+                weight_kg = volume_m3 * float(species.density_kg_per_m3)
+                weight_str = f"{weight_kg:.0f} kg"
+                total_weight_kg += weight_kg
+
         items_rows += f"""
         <tr>
           <td>{idx}</td>
           <td>{item.name}</td>
           <td style="text-align:right">{item.quantity} {item.unit or ''}</td>
-          <td></td>
+          <td style="text-align:right">{pieces_str}</td>
+          <td style="text-align:right">{packages_str}</td>
+          <td style="text-align:right">{weight_str}</td>
         </tr>
         """
     if not items_rows:
-        items_rows = '<tr><td colspan="4" style="color:#8a8578">Žádné materiálové položky v aktivní kalkulaci</td></tr>'
+        items_rows = '<tr><td colspan="6" style="color:#8a8578">Žádné materiálové položky v aktivní kalkulaci</td></tr>'
+
+    total_weight_row = ""
+    if total_weight_kg > 0:
+        total_weight_row = f"""
+        <tr style="font-weight:700; border-top: 1px solid #e6e1d7;">
+          <td colspan="5" style="text-align:right; padding-top:8px;">Celková váha</td>
+          <td style="text-align:right; padding-top:8px;">{total_weight_kg:.0f} kg</td>
+        </tr>
+        """
 
     ico_dic = ""
     if company:
@@ -138,9 +194,19 @@ def generate_delivery_note_pdf(
 
       <div class="section-title">Specifikace dodávaného zboží</div>
       <table class="spec">
-        <thead><tr><th>#</th><th>Popis - produkt, dřevina, profil</th><th style="text-align:right">Množství</th><th>Poznámka</th></tr></thead>
-        <tbody>{items_rows}</tbody>
+        <thead><tr>
+          <th>#</th><th>Popis - produkt, dřevina, profil</th>
+          <th style="text-align:right">Množství</th>
+          <th style="text-align:right">Počet ks</th>
+          <th style="text-align:right">Balení</th>
+          <th style="text-align:right">Váha</th>
+        </tr></thead>
+        <tbody>{items_rows}{total_weight_row}</tbody>
       </table>
+      <div style="font-size:9.5px; color:#8a8578; margin-top:4px;">
+        Uvedená váha je orientační, vypočtená z nominálních rozměrů a tabulkové objemové hmotnosti dřeviny -
+        skutečná hmotnost se může lišit podle vlhkosti a hustoty konkrétního materiálu.
+      </div>
 
       <div class="section-title">Stav dodávky</div>
       <div class="status-box">

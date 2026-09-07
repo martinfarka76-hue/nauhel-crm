@@ -22,6 +22,7 @@ class WoodSpecies(Base):
     length_mm = Column(Numeric(7, 1), nullable=True)
     thickness_mm = Column(Numeric(6, 1), nullable=True)
     purchase_price_per_m2 = Column(Numeric(10, 2), nullable=True)  # cena bez DPH
+    density_kg_per_m3 = Column(Numeric(7, 2), nullable=True)  # objemová hmotnost - pro výpočet váhy na dodacím listu
     supplier = Column(String(255), nullable=True)
     notes = Column(String(500), nullable=True)
 
