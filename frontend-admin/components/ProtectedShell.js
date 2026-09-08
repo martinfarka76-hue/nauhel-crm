@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { isLoggedIn, clearToken, api } from "@/lib/api";
 
 function formatNotifDate(iso) {
@@ -79,6 +79,16 @@ function DocumentIcon() {
       <path d="M14 3v5h5" />
       <line x1="9" y1="13" x2="15" y2="13" />
       <line x1="9" y1="17" x2="15" y2="17" />
+    </svg>
+  );
+}
+
+function ReportsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   );
 }
@@ -196,23 +206,14 @@ export default function ProtectedShell({ children }) {
     { href: "/companies", label: "Firmy", Icon: BuildingIcon },
     { href: "/contacts", label: "Kontakty", Icon: ContactsIcon },
     { href: "/documents", label: "Dokumenty", Icon: DocumentIcon },
+    { href: "/reports", label: "Reporty", Icon: ReportsIcon },
     { href: "/settings", label: "Nastavení", Icon: SettingsIcon },
   ];
 
   return (
     <div className="app-shell">
       <aside className="sidebar" style={{ position: "relative" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 16,
-            marginBottom: 14,
-            paddingBottom: 14,
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 4 }}>
           <div className="sidebar-brand" style={{ marginBottom: 0, flexShrink: 0 }}>
             <NauhelLogo height={14} />
           </div>
@@ -341,7 +342,7 @@ export default function ProtectedShell({ children }) {
             letterSpacing: "0.05em",
             color: "var(--ink-400)",
             paddingLeft: 10,
-            marginBottom: 20,
+            marginBottom: 26,
             whiteSpace: "nowrap",
           }}
         >
