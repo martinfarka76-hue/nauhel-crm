@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
-import { STATUS_COLORS, NEXT_MANUAL_STATUS, getBadgeTextColor, hexToRgba } from "@/lib/constants";
+import { STATUS_COLORS, NEXT_MANUAL_STATUS } from "@/lib/constants";
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
@@ -515,11 +515,27 @@ export default function DealDetailPage() {
     const basePrice = Number(species.purchase_price_per_m2) || 0;
     const suggestedPrice = Math.round((basePrice * (1 + marginMaterial) + surcharge) * 100) / 100;
 
+    // Krycí plocha (co chce zákazník) vs. skutečné množství materiálu (co musíme
+    // nakoupit) - u profilů s perem/drážkou je efektivní krycí šířka menší než
+    // šířka prkna, takže je potřeba víc materiálu, než kolik reálně pokryje fasádu.
+    // Cenu za m² neupravujeme (zůstává čistá nákupní cena), místo toho navyšujeme
+    // množství - a do názvu položky přidáme jasný popisek pro zákazníka.
+    const widthMm = Number(species.width_mm) || 0;
+    const widthEffMm = Number(species.width_effective_mm) || 0;
+    const facadeArea = areaM2 ? Number(areaM2) : Number(getItemForm(calcId).quantity) || 0;
+
+    let materialQuantity = facadeArea;
+    let itemName = species.name;
+    if (widthMm > 0 && widthEffMm > 0 && widthEffMm < widthMm && facadeArea > 0) {
+      materialQuantity = Math.round(facadeArea * (widthMm / widthEffMm) * 100) / 100;
+      itemName = `${species.name} (Krycí plocha fasády: ${facadeArea} m² → potřebné množství materiálu: ${materialQuantity} m²)`;
+    }
+
     setItemForm(calcId, {
       category: "Materiál",
-      name: species.name,
+      name: itemName,
       unit: "m²",
-      quantity: areaM2 ? String(Number(areaM2)) : getItemForm(calcId).quantity,
+      quantity: areaM2 ? String(materialQuantity) : getItemForm(calcId).quantity,
       unit_price: String(suggestedPrice),
     });
   }
@@ -906,14 +922,7 @@ export default function DealDetailPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span
-            className="badge"
-            style={{
-              background: STATUS_COLORS[deal.status],
-              color: getBadgeTextColor(STATUS_COLORS[deal.status]),
-              fontSize: 13,
-            }}
-          >
+          <span className="badge" style={{ background: STATUS_COLORS[deal.status], fontSize: 13 }}>
             {deal.status}
           </span>
           {!editingDeal && (
@@ -1123,8 +1132,8 @@ export default function DealDetailPage() {
       {guidance && (
         <div
           style={{
-            background: deal.status === "Ztraceno" ? "var(--paper-100)" : hexToRgba(STATUS_COLORS[deal.status], 0.14),
-            border: `1px solid ${deal.status === "Ztraceno" ? "var(--paper-200)" : STATUS_COLORS[deal.status]}`,
+            background: deal.status === "Ztraceno" ? "var(--paper-100)" : "#fdf3ec",
+            border: `1px solid ${deal.status === "Ztraceno" ? "var(--paper-200)" : "var(--ember-500)"}`,
             borderRadius: 12,
             padding: "18px 22px",
             marginBottom: 20,
@@ -1306,9 +1315,6 @@ export default function DealDetailPage() {
             const items = calcItems[c.id] || [];
             const form = getItemForm(c.id);
             const isExpanded = !!expandedCalcs[c.id];
-            const versionNumber = [...calculations]
-              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-              .findIndex((x) => x.id === c.id) + 1;
             return (
               <div
                 key={c.id}
@@ -1341,17 +1347,10 @@ export default function DealDetailPage() {
                     >
                       {isExpanded ? "▾" : "▸"}
                     </span>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <strong style={{ fontSize: 14 }}>
-                          {c.product_line || "—"} {c.wood_species ? `/ ${c.wood_species}` : ""}
-                        </strong>
-                        {c.is_active && <span className="badge" style={{ background: "var(--success)" }}>aktivní</span>}
-                      </div>
-                      <div style={{ fontSize: 11.5, color: "var(--ink-400)", marginTop: 2 }}>
-                        Kalkulace #{versionNumber} · {formatDate(c.created_at)}
-                      </div>
-                    </div>
+                    <strong style={{ fontSize: 14 }}>
+                      {c.product_line || "—"} {c.wood_species ? `/ ${c.wood_species}` : ""}
+                    </strong>
+                    {c.is_active && <span className="badge" style={{ background: "var(--success)" }}>aktivní</span>}
                   </div>
                   <strong className="mono" style={{ fontSize: 14 }}>{money(c.price_with_vat)}</strong>
                 </div>
@@ -1798,22 +1797,7 @@ export default function DealDetailPage() {
           </button>
         </div>
         {documents.length === 0 ? (
-          <div style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
-                border: "1px dashed var(--paper-200)",
-                borderRadius: 10,
-                padding: "20px 12px",
-                textAlign: "center",
-              }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 3v4a1 1 0 0 0 1 1h4" />
-              <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z" />
-            </svg>
-            <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádné dokumenty</div>
-          </div>
+          <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádné dokumenty</div>
         ) : (
           documents.map((d) => {
             const views = documentViews[d.id];
@@ -2080,22 +2064,7 @@ export default function DealDetailPage() {
           </div>
         </div>
         {notes.length === 0 ? (
-          <div style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
-                border: "1px dashed var(--paper-200)",
-                borderRadius: 10,
-                padding: "20px 12px",
-                textAlign: "center",
-              }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-            <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné poznámky</div>
-          </div>
+          <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné poznámky</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto" }}>
             {notes.map((n) => (
@@ -2155,21 +2124,7 @@ export default function DealDetailPage() {
         </div>
         {showAttachments &&
           (attachments.length === 0 ? (
-            <div style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
-                border: "1px dashed var(--paper-200)",
-                borderRadius: 10,
-                padding: "20px 12px",
-                textAlign: "center",
-              }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-              </svg>
-              <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné přílohy</div>
-            </div>
+            <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné přílohy</div>
           ) : (
             attachments.map((a) => (
               <div

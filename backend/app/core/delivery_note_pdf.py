@@ -60,19 +60,29 @@ def generate_delivery_note_pdf(
 
         species = None
         if item.name:
-            species = db.query(WoodSpecies).filter(WoodSpecies.name == item.name).first()
+            # Název položky teď může obsahovat i popisek (krycí plocha vs.
+            # množství materiálu), proto hledáme dřevinu, jejíž přesný název
+            # je začátkem názvu položky, ne přesnou shodu.
+            candidates = db.query(WoodSpecies).all()
+            for candidate in candidates:
+                if candidate.name and item.name.startswith(candidate.name):
+                    species = candidate
+                    break
 
         if (
             species
-            and species.width_effective_mm
             and species.length_mm
             and species.width_mm
             and species.thickness_mm
             and species.density_kg_per_m3
         ):
-            coverage_m2_per_piece = float(species.width_effective_mm) / 1000 * float(species.length_mm) / 1000
-            if coverage_m2_per_piece > 0:
-                pieces = math.ceil(float(item.quantity) / coverage_m2_per_piece)
+            # Množství (item.quantity) teď představuje skutečné množství
+            # materiálu potřebné k nákupu (nominální rozměry, vč. přesahu
+            # spár) - ne krycí plochu fasády, takže se počítá z NOMINÁLNÍ
+            # šířky, ne z efektivní krycí šířky.
+            nominal_m2_per_piece = float(species.width_mm) / 1000 * float(species.length_mm) / 1000
+            if nominal_m2_per_piece > 0:
+                pieces = math.ceil(float(item.quantity) / nominal_m2_per_piece)
                 pieces_str = str(pieces)
 
                 packages = pieces // pieces_per_package
