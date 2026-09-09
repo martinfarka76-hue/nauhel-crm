@@ -15,6 +15,7 @@ Pokud nejsou nastavené, veškerá volání se tiše přeskočí - stejný vzor
 jako u ms_graph.py a idoklad.py.
 """
 import os
+import re
 import time
 import logging
 import httpx
@@ -204,3 +205,50 @@ def upload_file_to_folder(drive_id: str, folder_id: str, filename: str, content_
     except Exception:
         logger.exception("SharePoint: upload_file_to_folder selhalo pro '%s'", filename)
         return False
+
+
+def get_max_folder_number(year: int) -> int | None:
+    """
+    Projde podsložky '03_Zakázky' na SharePointu a najde nejvyšší použité
+    pořadové číslo pro daný rok. Vrací None při selhání/nenakonfigurování
+    (volající by v tom případě NEMĚL přepisovat počítadlo, jen spolehnout
+    se na záložní kontrolu) - vrací 0 (ne None), pokud SharePoint úspěšně
+    odpověděl, ale žádná složka pro daný rok neexistuje.
+
+    Reálné složky na SharePointu bohužel nemají jednotný formát (různí
+    lidé je zakládali ručně v průběhu let) - místo "{rok}_{číslo}_Firma"
+    se objevuje i "{rok}_{číslo} Firma" (mezera místo podtržítka),
+    "{rok}_MPZ_{číslo}_Firma" (vložený kód dodavatele), nebo třeba
+    "{rok}_000_{číslo} Firma". Proto místo přísného parsování bereme
+    NEJVYŠŠÍ 2-4místné číslo, které se v názvu složky objeví kdekoliv -
+    je to bezpečnější (radši přeskočit dál, než riskovat kolizi kvůli
+    nepřečtenému číslu).
+    """
+    if not is_configured():
+        return None
+    try:
+        site_id, drive_id = _get_site_and_drive()
+        parent_id = _get_zakazky_folder_id(drive_id)
+        prefix = f"{year}_"
+        max_number = 0
+
+        url = f"{GRAPH_BASE}/drives/{drive_id}/items/{parent_id}/children?$select=name&$top=999"
+        while url:
+            resp = httpx.get(url, headers=_headers(), timeout=20.0)
+            resp.raise_for_status()
+            data = resp.json()
+            for item in data.get("value", []):
+                name = item.get("name", "")
+                if not name.startswith(prefix):
+                    continue
+                rest = name[len(prefix):]
+                for match in re.finditer(r"\d{2,4}", rest):
+                    candidate = int(match.group())
+                    if candidate > max_number:
+                        max_number = candidate
+            url = data.get("@odata.nextLink")
+
+        return max_number
+    except Exception:
+        logger.exception("SharePoint: get_max_folder_number selhalo pro rok %s", year)
+        return None

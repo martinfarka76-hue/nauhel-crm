@@ -5,9 +5,47 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { isLoggedIn, clearToken, api } from "@/lib/api";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
+
 function formatNotifDate(iso) {
   const utcIso = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
   return new Date(utcIso).toLocaleString("cs-CZ");
+}
+
+function SidebarUserAvatar({ user }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  if (!user) return null;
+  const initial = user.full_name ? user.full_name.charAt(0).toUpperCase() : "?";
+
+  if (user.avatar_filename && !imgFailed) {
+    return (
+      <img
+        src={`${API_URL}/users/${user.id}/avatar`}
+        alt=""
+        onError={() => setImgFailed(true)}
+        style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <span
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: "50%",
+        flexShrink: 0,
+        background: "var(--ember-500)",
+        color: "#fff",
+        fontSize: 11,
+        fontWeight: 700,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {initial}
+    </span>
+  );
 }
 
 function BellIcon() {
@@ -21,7 +59,7 @@ function BellIcon() {
 
 function NauhelLogo({ height = 16 }) {
   return (
-    <svg height={height} viewBox="202.875 256.25 417.375 52.625" style={{ color: "var(--ember-500)", display: "block" }}>
+    <svg height={height} viewBox="202.875 256.25 417.375 52.625" style={{ color: "#fff", display: "block" }}>
       <path transform="matrix(1,0,0,-1,365.4637,256.3749)" d="M0 0V-30.032C0-40.119 4.203-44.78 10.546-44.78 17.347-44.78 21.396-40.119 21.396-30.032V0H30.796V-29.42C30.796-45.315 22.619-52.345 10.24-52.345-1.681-52.345-9.399-45.697-9.399-29.497V0Z" fill="currentColor"/>
       <path transform="matrix(1,0,0,-1,238.6289,256.4994)" d="M0 0 .154-31.788-26.638-8.268-26.654-8.295-35.745 .082V-52.178H-26.324V-21.195L.214-44.259 .253-52.343 9.421-52.261V0Z" fill="currentColor"/>
       <path transform="matrix(1,0,0,-1,327.3455,308.8425)" d="M0 0-26.871 52.5-53.062 0H-42.078L-26.422 31.542-10.984 0Z" fill="currentColor"/>
@@ -214,9 +252,9 @@ export default function ProtectedShell({ children }) {
     <div className="app-shell">
       <aside className="sidebar" style={{ position: "relative" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 4 }}>
-          <div className="sidebar-brand" style={{ marginBottom: 0, flexShrink: 0 }}>
+          <Link href="/" className="sidebar-brand" style={{ marginBottom: 0, flexShrink: 0, display: "block" }}>
             <NauhelLogo height={14} />
-          </div>
+          </Link>
 
           <div ref={panelRef} style={{ position: "relative", flexShrink: 0 }}>
             <button
@@ -224,14 +262,23 @@ export default function ProtectedShell({ children }) {
               aria-label="Notifikace"
               style={{
                 position: "relative",
-                background: "none",
+                background: showPanel ? "rgba(181,101,45,0.18)" : "rgba(255,255,255,0.06)",
                 border: "none",
+                borderRadius: 8,
                 color: showPanel ? "var(--ember-500)" : "var(--paper-200)",
                 cursor: "pointer",
-                padding: 4,
+                width: 30,
+                height: 30,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!showPanel) e.currentTarget.style.background = "rgba(255,255,255,0.12)";
+              }}
+              onMouseLeave={(e) => {
+                if (!showPanel) e.currentTarget.style.background = "rgba(255,255,255,0.06)";
               }}
             >
               <BellIcon />
@@ -239,15 +286,25 @@ export default function ProtectedShell({ children }) {
                 <span
                   style={{
                     position: "absolute",
-                    top: -2,
-                    right: -2,
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
+                    top: 2,
+                    right: 2,
+                    minWidth: 14,
+                    height: 14,
+                    padding: "0 3px",
+                    borderRadius: 7,
                     background: "var(--ember-500)",
-                    border: "1.5px solid var(--char-950)",
+                    border: "2px solid var(--char-950)",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    lineHeight: 1,
                   }}
-                />
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
               )}
             </button>
 
@@ -361,7 +418,12 @@ export default function ProtectedShell({ children }) {
         ))}
 
         <div className="sidebar-footer">
-          {user && <div className="sidebar-user">{user.full_name}</div>}
+          {user && (
+            <div className="sidebar-user" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <SidebarUserAvatar user={user} />
+              {user.full_name}
+            </div>
+          )}
           <button className="logout-btn" onClick={handleLogout}>
             Odhlásit se
           </button>

@@ -1,7 +1,11 @@
+import logging
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.folder_sequence import FolderSequence
+
+logger = logging.getLogger("nauhel_crm.folder_sequence")
 
 
 def peek_next_folder_number(db: Session, year: int) -> int:
@@ -10,10 +14,12 @@ def peek_next_folder_number(db: Session, year: int) -> int:
     (počítadlo se nezvyšuje). Vytvoří řádek pro daný rok, pokud ještě
     neexistuje. Volat před pokusem o vytvoření složky na SharePointu.
 
-    Před vrácením čísla se navíc ověří proti skutečně použitým číslům
-    u existujících Dealů pro daný rok - pokud by počítadlo z nějakého
-    důvodu zaostávalo za realitou (např. ruční zásah do databáze), samo
-    se posune nad nejvyšší již použité číslo, aby nedošlo k duplicitě.
+    SharePoint (složka 03_Zakázky) je AUTORITATIVNÍ zdroj pravdy - pokud
+    je dostupný, počítadlo se nastaví přesně podle nejvyššího tam
+    nalezeného čísla (ať už bylo naše počítadlo pozadu, nebo naopak
+    příliš vysoko). Teprve když SharePoint není dostupný/nakonfigurovaný,
+    použije se záložní kontrola proti databázi Dealů (jen chrání proti
+    zaostávání, nikdy nesnižuje).
     """
     seq = db.query(FolderSequence).filter(FolderSequence.year == year).first()
     if not seq:
@@ -22,6 +28,24 @@ def peek_next_folder_number(db: Session, year: int) -> int:
         db.commit()
         db.refresh(seq)
 
+    from app.core import sharepoint
+
+    sharepoint_max = sharepoint.get_max_folder_number(year)
+    if sharepoint_max is not None:
+        authoritative_next = sharepoint_max + 1
+        if authoritative_next != seq.next_number:
+            logger.info(
+                "Počítadlo složek pro rok %s nastaveno podle SharePointu (%s -> %s)",
+                year, seq.next_number, authoritative_next,
+            )
+            seq.next_number = authoritative_next
+            db.commit()
+            db.refresh(seq)
+        return seq.next_number
+
+    # SharePoint nedostupný nebo nenakonfigurovaný - záložní kontrola
+    # proti skutečně použitým číslům u existujících Dealů (nikdy
+    # nesnižuje, jen chrání proti zaostávání počítadla za realitou).
     from app.models.deal import Deal
 
     max_used = (
