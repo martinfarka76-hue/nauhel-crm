@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 import { STATUS_COLORS } from "@/lib/constants";
@@ -17,11 +17,11 @@ function formatDate(iso) {
 
 export default function CompanyDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [company, setCompany] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [deals, setDeals] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState(null);
 
@@ -31,9 +31,10 @@ export default function CompanyDetailPage() {
     price: "",
     expected_close_date: "",
     expected_invoice_date: "",
-    owner_user_id: "",
   });
   const [saving, setSaving] = useState(false);
+  const [aresRefreshLoading, setAresRefreshLoading] = useState(false);
+  const [aresRefreshError, setAresRefreshError] = useState("");
 
   const [editingCompany, setEditingCompany] = useState(false);
   const [companyForm, setCompanyForm] = useState(null);
@@ -49,28 +50,17 @@ export default function CompanyDetailPage() {
       api.get(`/contacts?company_id=${id}`),
       api.get(`/deals?company_id=${id}`),
       api.get(`/documents?company_id=${id}`),
-      api.get(`/users`),
     ])
-      .then(([c, ct, d, docs, usersData]) => {
+      .then(([c, ct, d, docs]) => {
         setCompany(c);
         setContacts(ct);
         setDeals(d);
         setDocuments(docs);
-        setUsers(usersData);
       })
       .catch((err) => setError(err.message));
   }
 
   useEffect(loadAll, [id]);
-
-  useEffect(() => {
-    api
-      .get("/auth/me")
-      .then((me) => {
-        setDealForm((prev) => ({ ...prev, owner_user_id: prev.owner_user_id || me.id }));
-      })
-      .catch(() => {});
-  }, []);
 
   function handleCopyLink(accessToken, docId) {
     const url = `${PUBLIC_URL}/n/${accessToken}`;
@@ -97,15 +87,8 @@ export default function CompanyDetailPage() {
         price: dealForm.price ? Number(dealForm.price) : null,
         expected_close_date: dealForm.expected_close_date || null,
         expected_invoice_date: dealForm.expected_invoice_date || null,
-        owner_user_id: dealForm.owner_user_id || null,
       });
-      setDealForm({
-        name: "",
-        price: "",
-        expected_close_date: "",
-        expected_invoice_date: "",
-        owner_user_id: dealForm.owner_user_id,
-      });
+      setDealForm({ name: "", price: "", expected_close_date: "", expected_invoice_date: "" });
       setShowDealForm(false);
       loadAll();
     } catch (err) {
@@ -141,12 +124,34 @@ export default function CompanyDetailPage() {
     }
   }
 
+  async function handleAresRefresh() {
+    if (!companyForm.ico) {
+      setAresRefreshError("Nejdřív vyplň IČO.");
+      return;
+    }
+    setAresRefreshLoading(true);
+    setAresRefreshError("");
+    try {
+      const result = await api.get(`/ares/${companyForm.ico}`);
+      setCompanyForm({
+        ...companyForm,
+        name: result.name || companyForm.name,
+        address: result.address || companyForm.address,
+        dic: result.dic_guess || companyForm.dic,
+      });
+    } catch (err) {
+      setAresRefreshError(err.message);
+    } finally {
+      setAresRefreshLoading(false);
+    }
+  }
+
   async function handleDeleteCompany() {
     if (!window.confirm(`Opravdu smazat firmu "${company.name}"? Tato akce je nevratná.`)) return;
     setError("");
     try {
       await api.delete(`/companies/${id}`);
-      window.location.href = "/companies";
+      router.push("/companies");
     } catch (err) {
       setError(err.message);
     }
@@ -257,10 +262,28 @@ export default function CompanyDetailPage() {
               </div>
               <div className="field">
                 <label>IČO</label>
-                <input
-                  value={companyForm.ico}
-                  onChange={(e) => setCompanyForm({ ...companyForm, ico: e.target.value })}
-                />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    value={companyForm.ico}
+                    onChange={(e) => setCompanyForm({ ...companyForm, ico: e.target.value })}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleAresRefresh}
+                    disabled={aresRefreshLoading}
+                    style={{ whiteSpace: "nowrap" }}
+                  >
+                    {aresRefreshLoading ? "Načítám…" : "Načíst z ARES"}
+                  </button>
+                </div>
+                {aresRefreshError && (
+                  <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 4 }}>{aresRefreshError}</div>
+                )}
+                <div style={{ fontSize: 11.5, color: "var(--ink-400)", marginTop: 4 }}>
+                  Doplní název/adresu/DIČ podle ARES - zkontroluj a ulož tlačítkem níže.
+                </div>
               </div>
               <div className="field">
                 <label>DIČ</label>
@@ -481,19 +504,6 @@ export default function CompanyDetailPage() {
               />
             </div>
             <div className="field">
-              <label>Vlastník případu</label>
-              <select
-                value={dealForm.owner_user_id}
-                onChange={(e) => setDealForm({ ...dealForm, owner_user_id: e.target.value })}
-              >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
               <label>Odhadovaná cena (Kč)</label>
               <input
                 type="number"
@@ -539,7 +549,7 @@ export default function CompanyDetailPage() {
           </thead>
           <tbody>
             {deals.map((d) => (
-              <tr key={d.id} className="clickable" onClick={() => (window.location.href = `/deals/${d.id}`)}>
+              <tr key={d.id} className="clickable" onClick={() => router.push(`/deals/${d.id}`)}>
                 <td style={{ fontWeight: 600 }}>{d.name}</td>
                 <td>
                   <span className="badge" style={{ background: STATUS_COLORS[d.status] }}>

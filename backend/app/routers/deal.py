@@ -1,13 +1,16 @@
 import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.deal_transitions import perform_transition
 from app.models.deal import Deal
-from app.models.enums import DealStatus
+from app.models.deal_note import DealNote
+from app.models.document import Document
+from app.models.enums import DealStatus, DocumentType
 from app.models.user import User
 from app.schemas.deal import DealCreate, DealUpdate, DealOut
 from app.schemas.deal_transition import DealTransitionRequest
@@ -98,3 +101,55 @@ def transition_deal(
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
     return perform_transition(db, deal, payload.to_status)
+
+
+class ManualOrderConfirmationRequest(BaseModel):
+    note: str
+
+
+@router.post("/{deal_id}/manual-order-confirmation", response_model=DealOut)
+def manual_order_confirmation(
+    deal_id: uuid.UUID,
+    payload: ManualOrderConfirmationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Ruční přesun z "Objednávka" na "Zálohová faktura" pro případy, kdy
+    objednávka byla potvrzena MIMO náš systém (typicky historické
+    případy naimportované odjinud, kde neexistuje žádný náš dokument
+    "Objednávka" k potvrzení přes veřejný odkaz). Normální cestou (přes
+    e-signature webhook na skutečném dokumentu) tenhle přechod NEJDE
+    obejít - tenhle endpoint je záměrně dostupný jen když u Dealu
+    neexistuje žádný dokument typu Objednávka.
+    """
+    deal = db.query(Deal).filter(Deal.id == deal_id).first()
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    if deal.status != DealStatus.OBJEDNAVKA:
+        raise HTTPException(status_code=400, detail="Deal není ve stavu Objednávka")
+
+    existing_document = (
+        db.query(Document)
+        .filter(Document.deal_id == deal_id, Document.document_type == DocumentType.OBJEDNAVKA)
+        .first()
+    )
+    if existing_document:
+        raise HTTPException(
+            status_code=400,
+            detail="U tohoto případu existuje dokument Objednávka - potvrzení musí proběhnout přes veřejný odkaz, ne ručně.",
+        )
+
+    if not payload.note or not payload.note.strip():
+        raise HTTPException(status_code=400, detail="Je potřeba uvést poznámku (jak/kdy byla objednávka potvrzena).")
+
+    deal.status = DealStatus.ZALOHOVA_FAKTURA
+    note = DealNote(
+        deal_id=deal.id,
+        author_user_id=current_user.id,
+        content=f"Objednávka potvrzena mimo systém: {payload.note.strip()}",
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(deal)
+    return deal

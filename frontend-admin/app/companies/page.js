@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 
@@ -60,6 +61,7 @@ function CompanyAvatar({ name, website }) {
 }
 
 export default function CompaniesPage() {
+  const router = useRouter();
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -244,7 +246,7 @@ export default function CompaniesPage() {
               <tr
                 key={c.id}
                 className="clickable"
-                onClick={() => (window.location.href = `/companies/${c.id}`)}
+                onClick={() => router.push(`/companies/${c.id}`)}
               >
                 <td style={{ fontWeight: 600 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

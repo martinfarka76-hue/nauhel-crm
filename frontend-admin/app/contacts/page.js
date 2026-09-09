@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 
@@ -62,6 +63,7 @@ function CompanyAvatar({ name, website }) {
 const emptyNewContactForm = { company_id: "", first_name: "", last_name: "", email: "", phone: "", position: "" };
 
 export default function ContactsPage() {
+  const router = useRouter();
   const [contacts, setContacts] = useState([]);
   const [companies, setCompanies] = useState({});
   const [loading, setLoading] = useState(true);
@@ -381,7 +383,7 @@ export default function ContactsPage() {
                 <tr
                   key={c.id}
                   className="clickable"
-                  onClick={() => company && (window.location.href = `/companies/${company.id}`)}
+                  onClick={() => company && router.push(`/companies/${company.id}`)}
                 >
                   <td style={{ fontWeight: 600 }}>
                     {c.first_name} {c.last_name}

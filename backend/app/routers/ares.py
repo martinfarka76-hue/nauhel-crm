@@ -1,5 +1,6 @@
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from app.core.dependencies import get_current_user
 from app.models.user import User
@@ -37,3 +38,48 @@ def lookup_ico(ico: str, current_user: User = Depends(get_current_user)):
         "address": sidlo.get("textovaAdresa"),
         "dic_guess": f"CZ{found_ico}" if found_ico else None,
     }
+
+
+class AresNameSearchRequest(BaseModel):
+    name: str
+
+
+@router.post("/search")
+def search_by_name(payload: AresNameSearchRequest, current_user: User = Depends(get_current_user)):
+    """
+    Vyhledá firmy v registru ARES podle (části) názvu - na rozdíl od
+    vyhledání podle IČO může vrátit VÍCE shod, proto se vrací seznam
+    kandidátů k ručnímu výběru, ne jeden jistý výsledek. Použití: doplnění
+    chybějícího IČO u firem naimportovaných odjinud (např. z HubSpotu).
+    """
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Zadej název firmy.")
+
+    try:
+        resp = httpx.post(
+            f"{ARES_BASE_URL}/vyhledat",
+            json={"obchodniJmeno": name, "pocet": 10},
+            timeout=10.0,
+        )
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="Registr ARES je momentálně nedostupný, zkus to prosím později.")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail="Chyba při komunikaci s registrem ARES.")
+
+    data = resp.json()
+    subjects = data.get("ekonomickeSubjekty", [])
+
+    results = []
+    for s in subjects:
+        sidlo = s.get("sidlo", {})
+        found_ico = s.get("ico")
+        results.append({
+            "ico": found_ico,
+            "name": s.get("obchodniJmeno"),
+            "address": sidlo.get("textovaAdresa"),
+            "dic_guess": f"CZ{found_ico}" if found_ico else None,
+        })
+
+    return {"results": results}

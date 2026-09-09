@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 import { STATUS_COLORS, NEXT_MANUAL_STATUS } from "@/lib/constants";
@@ -70,6 +70,7 @@ const DEFAULT_WOOD_SPECIES_NAME = 'Modřín Evropský "Z" 20x145, délka 4000mm'
 
 export default function DealDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [deal, setDeal] = useState(null);
   const [company, setCompany] = useState(null);
   const [companyContacts, setCompanyContacts] = useState([]);
@@ -393,7 +394,7 @@ export default function DealDetailPage() {
     setError("");
     try {
       await api.delete(`/deals/${id}`);
-      window.location.href = company ? `/companies/${company.id}` : "/companies";
+      router.push(company ? `/companies/${company.id}` : "/companies");
     } catch (err) {
       setError(err.message);
     }
@@ -443,6 +444,24 @@ export default function DealDetailPage() {
     setError("");
     try {
       await api.post(`/deals/${id}/transition`, { to_status: toStatus });
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setTransitioning(false);
+    }
+  }
+
+  async function handleManualOrderConfirmation() {
+    const note = window.prompt(
+      "Jak/kde byla objednávka potvrzena mimo systém? (např. \"potvrzeno telefonicky, viz HubSpot\")"
+    );
+    if (!note || !note.trim()) return;
+
+    setTransitioning(true);
+    setError("");
+    try {
+      await api.post(`/deals/${id}/manual-order-confirmation`, { note: note.trim() });
       loadAll();
     } catch (err) {
       setError(err.message);
@@ -969,6 +988,29 @@ export default function DealDetailPage() {
                   >
                     Upravit
                   </button>
+                  {deal.status === "Objednávka" && !documents.some((d) => d.document_type === "Objednávka") && (
+                    <button
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        handleManualOrderConfirmation();
+                      }}
+                      disabled={transitioning}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "10px 14px",
+                        background: "none",
+                        border: "none",
+                        borderTop: "1px solid var(--paper-200)",
+                        fontSize: 13,
+                        cursor: "pointer",
+                        color: "var(--ink-900)",
+                      }}
+                    >
+                      Objednávka potvrzena mimo systém
+                    </button>
+                  )}
                   {deal.status !== "Ztraceno" && deal.status !== "Fakturováno" && (
                     <button
                       onClick={() => {

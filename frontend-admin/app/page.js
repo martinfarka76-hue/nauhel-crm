@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 
@@ -128,6 +129,7 @@ const emptyNewDealForm = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [deals, setDeals] = useState([]);
   const [companiesList, setCompaniesList] = useState([]);
   const [companies, setCompanies] = useState({});
@@ -808,7 +810,7 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {pagedDeals.map((deal) => (
-                    <tr key={deal.id} className="clickable" onClick={() => (window.location.href = `/deals/${deal.id}`)}>
+                    <tr key={deal.id} className="clickable" onClick={() => router.push(`/deals/${deal.id}`)}>
                       <td style={{ fontWeight: 600 }}>{deal.name}</td>
                       <td>{companies[deal.company_id] || "—"}</td>
                       <td>
