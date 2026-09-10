@@ -543,17 +543,10 @@ export default function DealDetailPage() {
   function handleApplyWoodSpecies(calcId, speciesId, productLine, areaM2) {
     const species = woodSpeciesList.find((s) => s.id === speciesId);
     if (!species) return;
-    const marginMaterial = pricingParams.margin_material ?? 0;
-    const surchargeKey = surchargeKeyForProductLine(productLine);
-    const surcharge = surchargeKey ? pricingParams[surchargeKey] ?? 0 : 0;
-    const basePrice = Number(species.purchase_price_per_m2) || 0;
-    const suggestedPrice = Math.round((basePrice * (1 + marginMaterial) + surcharge) * 100) / 100;
 
     // Krycí plocha (co chce zákazník) vs. skutečné množství materiálu (co musíme
     // nakoupit) - u profilů s perem/drážkou je efektivní krycí šířka menší než
     // šířka prkna, takže je potřeba víc materiálu, než kolik reálně pokryje fasádu.
-    // Cenu za m² neupravujeme (zůstává čistá nákupní cena), místo toho navyšujeme
-    // množství - a do názvu položky přidáme jasný popisek pro zákazníka.
     const widthMm = Number(species.width_mm) || 0;
     const widthEffMm = Number(species.width_effective_mm) || 0;
     const facadeArea = areaM2 ? Number(areaM2) : Number(getItemForm(calcId).quantity) || 0;
@@ -564,6 +557,32 @@ export default function DealDetailPage() {
       materialQuantity = Math.round(facadeArea * (widthMm / widthEffMm) * 100) / 100;
       itemName = `${species.name} (Krycí plocha fasády: ${facadeArea} m² → potřebné množství materiálu: ${materialQuantity} m²)`;
     }
+
+    // Cena za m² - přesně podle listu "Kalkulace" ve zdrojovém Excelu: materiál
+    // a výroba se počítají ODDĚLENĚ, každé se svou marží, a marže výroby se liší
+    // podle produktové řady (Atacama = plná marže, Mirage/Ocaso = poloviční).
+    // K materiálu se navíc připočítává fixní náklad "doprava - nákup dřeva"
+    // (jednou za zakázku, ne za m²), teprve pak se na součet aplikuje marže.
+    const marginMaterial = pricingParams.margin_material ?? 0;
+    const marginVyroba = pricingParams.margin_vyroba ?? 0;
+    const productionMarginEffective = productLine === "Atacama" ? marginVyroba : marginVyroba * 0.5;
+
+    const surchargeKey = surchargeKeyForProductLine(productLine);
+    const surcharge = surchargeKey ? pricingParams[surchargeKey] ?? 0 : 0;
+    const productionBase = pricingParams.production_base_per_m2 ?? 0;
+    const packagingBase = pricingParams.packaging_base_per_m2 ?? 0;
+    const transportFixedFromSupplier = pricingParams.transport_fixed_from_supplier ?? 0;
+    const purchasePrice = Number(species.purchase_price_per_m2) || 0;
+
+    const vyrobaZaklad = materialQuantity * (productionBase + surcharge);
+    const baleniCelkem = materialQuantity * packagingBase;
+    const vyrobaSMarzi = (vyrobaZaklad + baleniCelkem) * (1 + productionMarginEffective);
+
+    const materialZaklad = materialQuantity * purchasePrice + transportFixedFromSupplier;
+    const materialSMarzi = materialZaklad * (1 + marginMaterial);
+
+    const cenaCelkem = materialSMarzi + vyrobaSMarzi;
+    const suggestedPrice = materialQuantity > 0 ? Math.round((cenaCelkem / materialQuantity) * 100) / 100 : 0;
 
     setItemForm(calcId, {
       category: "Materiál",
