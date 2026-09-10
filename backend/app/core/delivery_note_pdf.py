@@ -150,10 +150,18 @@ def generate_delivery_note_pdf(
                     border-bottom: 1px solid #f2efe9; }}
       .info-row:last-child {{ border-bottom: none; }}
       .info-row .k {{ color: #8a8578; }}
-      table.spec {{ width: 100%; border-collapse: collapse; margin-top: 6px; }}
+      table.spec {{ width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }}
       table.spec th {{ text-align: left; font-size: 10.5px; color: #8a8578; text-transform: uppercase;
                         border-bottom: 1px solid #e6e1d7; padding: 6px 4px; }}
       table.spec td {{ font-size: 12px; padding: 7px 4px; border-bottom: 1px solid #f2efe9; }}
+      table.spec th:nth-child(1), table.spec td:nth-child(1) {{ width: 5%; }}
+      table.spec th:nth-child(2), table.spec td:nth-child(2) {{ width: 41%; }}
+      table.spec th:nth-child(3), table.spec td:nth-child(3),
+      table.spec th:nth-child(4), table.spec td:nth-child(4),
+      table.spec th:nth-child(5), table.spec td:nth-child(5),
+      table.spec th:nth-child(6), table.spec td:nth-child(6) {{
+        width: 13.5%; white-space: nowrap;
+      }}
       .status-box {{ border: 1px solid #e6e1d7; border-radius: 8px; padding: 12px 16px; margin-top: 6px; }}
       .checkbox-row {{ font-size: 12px; margin-bottom: 6px; }}
       .checkbox-row .checked {{ color: #b5652d; font-weight: 700; }}

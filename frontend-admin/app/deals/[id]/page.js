@@ -365,6 +365,7 @@ export default function DealDetailPage() {
       owner_user_id: deal.owner_user_id || "",
       expected_close_date: deal.expected_close_date || "",
       expected_invoice_date: deal.expected_invoice_date || "",
+      next_contact_date: deal.next_contact_date || "",
       deposit_paid: deal.deposit_paid,
     });
     setEditingDeal(true);
@@ -381,6 +382,7 @@ export default function DealDetailPage() {
         owner_user_id: dealEditForm.owner_user_id || null,
         expected_close_date: dealEditForm.expected_close_date || null,
         expected_invoice_date: dealEditForm.expected_invoice_date || null,
+        next_contact_date: dealEditForm.next_contact_date || null,
         deposit_paid: dealEditForm.deposit_paid,
       });
       setEditingDeal(false);
@@ -974,6 +976,35 @@ export default function DealDetailPage() {
                 <strong>{formatDateOnly(deal.expected_invoice_date)}</strong>
               )}
             </span>
+            {deal.status !== "Ztraceno" && deal.status !== "Fakturováno" && (
+              <span>
+                Follow-up:{" "}
+                {quickEditingDateField === "next_contact_date" ? (
+                  <input
+                    type="date"
+                    autoFocus
+                    defaultValue={deal.next_contact_date || ""}
+                    onBlur={(e) => handleQuickDateUpdate("next_contact_date", e.target.value)}
+                    style={{ fontSize: 12.5, padding: "1px 4px" }}
+                  />
+                ) : (
+                  <strong
+                    onClick={() => setQuickEditingDateField("next_contact_date")}
+                    style={{
+                      cursor: "pointer",
+                      borderBottom: "1px dotted var(--ink-400)",
+                      color:
+                        deal.next_contact_date && deal.next_contact_date < new Date().toISOString().slice(0, 10)
+                          ? "var(--danger, #a13d3d)"
+                          : "inherit",
+                    }}
+                    title="Klikni pro rychlou úpravu"
+                  >
+                    {deal.next_contact_date ? formatDateOnly(deal.next_contact_date) : "nenastaveno"}
+                  </strong>
+                )}
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 12.5, color: "var(--ink-600)", display: "flex", gap: 16, marginBottom: 16 }}>
             <span>
@@ -1219,6 +1250,16 @@ export default function DealDetailPage() {
                 )}
               </div>
             </div>
+            {deal.status !== "Ztraceno" && deal.status !== "Fakturováno" && (
+              <div className="field">
+                <label>Termín dalšího kontaktu (follow-up)</label>
+                <input
+                  type="date"
+                  value={dealEditForm.next_contact_date}
+                  onChange={(e) => setDealEditForm({ ...dealEditForm, next_contact_date: e.target.value })}
+                />
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-primary" type="submit">
                 Uložit

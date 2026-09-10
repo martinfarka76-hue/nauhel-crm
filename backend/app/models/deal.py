@@ -30,6 +30,13 @@ class Deal(Base):
     expected_invoice_date = Column(Date, nullable=True)
     deposit_paid = Column(Boolean, nullable=False, default=False)
 
+    # Follow-up připomínka - kdy se má obchodník příště ozvat zákazníkovi.
+    # next_contact_notified_at slouží jen jako interní příznak (aby se
+    # notifikace vygenerovala jen JEDNOU za daný termín, ne opakovaně
+    # každý den) - resetuje se na NULL, kdykoliv se next_contact_date změní.
+    next_contact_date = Column(Date, nullable=True)
+    next_contact_notified_at = Column(DateTime, nullable=True)
+
     # SharePoint - odkaz na automaticky vytvořenou složku zakázky a ID
     # podsložek pro automatické nahrávání dokumentů (Nabídka, Faktury)
     sharepoint_folder_url = Column(String(500), nullable=True)

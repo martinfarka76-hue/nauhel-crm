@@ -650,6 +650,59 @@ export default function DashboardPage() {
       {error && <div className="error-banner">{error}</div>}
       {loading && <div className="empty-state">Načítám…</div>}
 
+      {!loading && (() => {
+        const today = new Date().toISOString().slice(0, 10);
+        const weekAhead = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const followupDeals = deals
+          .filter(
+            (d) =>
+              d.next_contact_date &&
+              d.next_contact_date <= weekAhead &&
+              d.status !== "Ztraceno" &&
+              d.status !== "Fakturováno"
+          )
+          .sort((a, b) => a.next_contact_date.localeCompare(b.next_contact_date));
+
+        if (followupDeals.length === 0) return null;
+
+        return (
+          <div className="card" style={{ marginBottom: 16, flexShrink: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 10 }}>
+              Blíží se follow-up ({followupDeals.length})
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {followupDeals.map((d) => {
+                const isOverdue = d.next_contact_date < today;
+                return (
+                  <div
+                    key={d.id}
+                    onClick={() => router.push(`/deals/${d.id}`)}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "6px 10px",
+                      background: isOverdue ? "#fdf0ef" : "var(--paper-50)",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      fontSize: 13,
+                    }}
+                  >
+                    <span>
+                      <strong>{d.name}</strong>
+                      {companies[d.company_id] && <span style={{ color: "var(--ink-600)" }}> · {companies[d.company_id]}</span>}
+                    </span>
+                    <span style={{ color: isOverdue ? "var(--danger, #a13d3d)" : "var(--ink-600)", fontWeight: isOverdue ? 700 : 400 }}>
+                      {formatDateShort(d.next_contact_date)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {!loading && viewMode === "kanban" && (
         <div className="kanban" style={{ flex: 1, minHeight: 0 }}>
           {DEAL_STATUSES.map((status) => {

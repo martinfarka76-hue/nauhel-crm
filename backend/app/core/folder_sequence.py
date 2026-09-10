@@ -14,12 +14,12 @@ def peek_next_folder_number(db: Session, year: int) -> int:
     (počítadlo se nezvyšuje). Vytvoří řádek pro daný rok, pokud ještě
     neexistuje. Volat před pokusem o vytvoření složky na SharePointu.
 
-    SharePoint (složka 03_Zakázky) je AUTORITATIVNÍ zdroj pravdy - pokud
-    je dostupný, počítadlo se nastaví přesně podle nejvyššího tam
-    nalezeného čísla (ať už bylo naše počítadlo pozadu, nebo naopak
-    příliš vysoko). Teprve když SharePoint není dostupný/nakonfigurovaný,
-    použije se záložní kontrola proti databázi Dealů (jen chrání proti
-    zaostávání, nikdy nesnižuje).
+    Počítadlo je čistě naše vlastní (databázové) - dřívější kontrola proti
+    SharePointu byla odstraněna, protože reálné historické složky mají
+    nekonzistentní formát a "chytré" hledání čísla v názvu složky omylem
+    zachytávalo nesouvisející čísla (např. z adresy). Před vrácením čísla
+    se jen ověří proti skutečně použitým číslům u existujících Dealů
+    (nikdy nesnižuje, jen chrání proti zaostávání počítadla za realitou).
     """
     seq = db.query(FolderSequence).filter(FolderSequence.year == year).first()
     if not seq:
@@ -28,24 +28,6 @@ def peek_next_folder_number(db: Session, year: int) -> int:
         db.commit()
         db.refresh(seq)
 
-    from app.core import sharepoint
-
-    sharepoint_max = sharepoint.get_max_folder_number(year)
-    if sharepoint_max is not None:
-        authoritative_next = sharepoint_max + 1
-        if authoritative_next != seq.next_number:
-            logger.info(
-                "Počítadlo složek pro rok %s nastaveno podle SharePointu (%s -> %s)",
-                year, seq.next_number, authoritative_next,
-            )
-            seq.next_number = authoritative_next
-            db.commit()
-            db.refresh(seq)
-        return seq.next_number
-
-    # SharePoint nedostupný nebo nenakonfigurovaný - záložní kontrola
-    # proti skutečně použitým číslům u existujících Dealů (nikdy
-    # nesnižuje, jen chrání proti zaostávání počítadla za realitou).
     from app.models.deal import Deal
 
     max_used = (

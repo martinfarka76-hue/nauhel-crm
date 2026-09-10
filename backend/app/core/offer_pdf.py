@@ -71,9 +71,13 @@ def generate_offer_pdf(document: Document, deal: Deal, company: Company, calc: C
       .stat:last-child {{ border-right: none; }}
       .stat .label {{ font-size: 10px; text-transform: uppercase; color: #8a8578; }}
       .stat .value {{ font-size: 14px; font-weight: 700; }}
-      table {{ width: 100%; border-collapse: collapse; margin-bottom: 16px; }}
+      table {{ width: 100%; border-collapse: collapse; margin-bottom: 16px; table-layout: fixed; }}
       th {{ text-align: left; font-size: 11px; color: #8a8578; border-bottom: 1px solid #e6e1d7; padding: 6px 0; }}
       td {{ font-size: 13px; padding: 8px 0; border-bottom: 1px solid #f2efe9; }}
+      th:nth-child(1), td:nth-child(1) {{ width: 52%; }}
+      th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) {{
+        width: 16%; white-space: nowrap;
+      }}
       .totals .row {{ display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }}
       .totals .total {{ font-weight: 700; font-size: 16px; border-top: 1px solid #17140f; padding-top: 10px; }}
       .footer {{ margin-top: 30px; font-size: 11px; color: #8a8578; }}

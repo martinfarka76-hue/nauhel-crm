@@ -64,7 +64,12 @@ def update_deal(
     deal = db.query(Deal).filter(Deal.id == deal_id).first()
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    if "next_contact_date" in update_data:
+        # Nový/změněný termín - resetovat příznak, ať se pro něj (pokud
+        # už je splatný) znovu vygeneruje notifikace.
+        deal.next_contact_notified_at = None
+    for field, value in update_data.items():
         setattr(deal, field, value)
     db.commit()
     db.refresh(deal)

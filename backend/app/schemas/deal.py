@@ -16,6 +16,7 @@ class DealBase(BaseModel):
     price: Optional[Decimal] = None
     expected_close_date: Optional[date] = None
     expected_invoice_date: Optional[date] = None
+    next_contact_date: Optional[date] = None
     deposit_paid: bool = False
 
 
@@ -31,6 +32,7 @@ class DealUpdate(BaseModel):
     price: Optional[Decimal] = None
     expected_close_date: Optional[date] = None
     expected_invoice_date: Optional[date] = None
+    next_contact_date: Optional[date] = None
     deposit_paid: Optional[bool] = None
 
 

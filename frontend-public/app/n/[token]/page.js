@@ -355,13 +355,13 @@ export default function PublicOfferPage() {
               )}
 
               {calc.items && calc.items.length > 0 && (
-                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16, marginBottom: 4 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16, marginBottom: 4, tableLayout: "fixed" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--line)" }}>
-                      <th style={{ textAlign: "left", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600 }}>Položka</th>
-                      <th style={{ textAlign: "right", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600 }}>Množství</th>
-                      <th style={{ textAlign: "right", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600 }}>Jedn. cena</th>
-                      <th style={{ textAlign: "right", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600 }}>Celkem</th>
+                      <th style={{ textAlign: "left", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600, width: "52%" }}>Položka</th>
+                      <th style={{ textAlign: "right", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600, width: "16%", whiteSpace: "nowrap" }}>Množství</th>
+                      <th style={{ textAlign: "right", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600, width: "16%", whiteSpace: "nowrap" }}>Jedn. cena</th>
+                      <th style={{ textAlign: "right", padding: "6px 0", fontSize: 12, color: "var(--ink-600)", fontWeight: 600, width: "16%", whiteSpace: "nowrap" }}>Celkem</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -370,13 +370,13 @@ export default function PublicOfferPage() {
                       return (
                         <tr key={idx} style={{ borderBottom: "1px solid var(--paper-200)" }}>
                           <td style={{ padding: "8px 0", fontSize: 13.5 }}>{it.name}</td>
-                          <td className="mono" style={{ padding: "8px 0", fontSize: 13, textAlign: "right" }}>
+                          <td className="mono" style={{ padding: "8px 0", fontSize: 13, textAlign: "right", whiteSpace: "nowrap" }}>
                             {Number(it.quantity)} {it.unit || ""}
                           </td>
-                          <td className="mono" style={{ padding: "8px 0", fontSize: 13, textAlign: "right" }}>
+                          <td className="mono" style={{ padding: "8px 0", fontSize: 13, textAlign: "right", whiteSpace: "nowrap" }}>
                             {formatMoney(it.unit_price)}
                           </td>
-                          <td className="mono" style={{ padding: "8px 0", fontSize: 13, textAlign: "right" }}>
+                          <td className="mono" style={{ padding: "8px 0", fontSize: 13, textAlign: "right", whiteSpace: "nowrap" }}>
                             {formatMoney(lineTotal)}
                           </td>
                         </tr>
