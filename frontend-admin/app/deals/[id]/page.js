@@ -134,6 +134,7 @@ export default function DealDetailPage() {
 
   const [editingDeal, setEditingDeal] = useState(false);
   const [dealEditForm, setDealEditForm] = useState(null);
+  const [quickEditingDateField, setQuickEditingDateField] = useState(null);
 
   function loadAll() {
     api
@@ -383,6 +384,18 @@ export default function DealDetailPage() {
         deposit_paid: dealEditForm.deposit_paid,
       });
       setEditingDeal(false);
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleQuickDateUpdate(field, value) {
+    setQuickEditingDateField(null);
+    if ((deal[field] || "") === value) return; // beze změny, nic neposílat
+    setError("");
+    try {
+      await api.put(`/deals/${id}`, { [field]: value || null });
       loadAll();
     } catch (err) {
       setError(err.message);
@@ -898,7 +911,14 @@ export default function DealDetailPage() {
           <h1 className="page-title">{deal.name}</h1>
           <p className="page-subtitle">
             {company ? (
-              <a href={`/companies/${company.id}`} style={{ textDecoration: "underline" }}>
+              <a
+                onClick={(e) => {
+                  e.preventDefault();
+                  router.push(`/companies/${company.id}`);
+                }}
+                href={`/companies/${company.id}`}
+                style={{ textDecoration: "underline", cursor: "pointer" }}
+              >
                 {company.name}
               </a>
             ) : (
@@ -908,11 +928,51 @@ export default function DealDetailPage() {
           <div style={{ fontSize: 12.5, color: "var(--ink-600)", display: "flex", gap: 16, marginTop: -8, marginBottom: 4 }}>
             <span>
               {CLOSE_DATE_EDITABLE_STATUSES.includes(deal.status) ? "Odhad uzavření" : "Uzavřeno"}:{" "}
-              <strong>{formatDateOnly(deal.expected_close_date)}</strong>
+              {CLOSE_DATE_EDITABLE_STATUSES.includes(deal.status) ? (
+                quickEditingDateField === "expected_close_date" ? (
+                  <input
+                    type="date"
+                    autoFocus
+                    defaultValue={deal.expected_close_date || ""}
+                    onBlur={(e) => handleQuickDateUpdate("expected_close_date", e.target.value)}
+                    style={{ fontSize: 12.5, padding: "1px 4px" }}
+                  />
+                ) : (
+                  <strong
+                    onClick={() => setQuickEditingDateField("expected_close_date")}
+                    style={{ cursor: "pointer", borderBottom: "1px dotted var(--ink-400)" }}
+                    title="Klikni pro rychlou úpravu"
+                  >
+                    {formatDateOnly(deal.expected_close_date)}
+                  </strong>
+                )
+              ) : (
+                <strong>{formatDateOnly(deal.expected_close_date)}</strong>
+              )}
             </span>
             <span>
               {deal.status === INVOICE_DATE_LOCKED_STATUS ? "Fakturováno" : "Odhad fakturace"}:{" "}
-              <strong>{formatDateOnly(deal.expected_invoice_date)}</strong>
+              {deal.status !== INVOICE_DATE_LOCKED_STATUS ? (
+                quickEditingDateField === "expected_invoice_date" ? (
+                  <input
+                    type="date"
+                    autoFocus
+                    defaultValue={deal.expected_invoice_date || ""}
+                    onBlur={(e) => handleQuickDateUpdate("expected_invoice_date", e.target.value)}
+                    style={{ fontSize: 12.5, padding: "1px 4px" }}
+                  />
+                ) : (
+                  <strong
+                    onClick={() => setQuickEditingDateField("expected_invoice_date")}
+                    style={{ cursor: "pointer", borderBottom: "1px dotted var(--ink-400)" }}
+                    title="Klikni pro rychlou úpravu"
+                  >
+                    {formatDateOnly(deal.expected_invoice_date)}
+                  </strong>
+                )
+              ) : (
+                <strong>{formatDateOnly(deal.expected_invoice_date)}</strong>
+              )}
             </span>
           </div>
           <div style={{ fontSize: 12.5, color: "var(--ink-600)", display: "flex", gap: 16, marginBottom: 16 }}>
