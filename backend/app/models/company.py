@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Text, DateTime
+from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -20,8 +20,12 @@ class Company(Base):
     # ID odpovídajícího kontaktu (odběratele) v iDokladu - jednou nalezené/
     # vytvořené se uloží sem, ať se příště nemusí znovu hledat podle IČO
     idoklad_contact_id = Column(Integer, nullable=True)
+    # Partner = dodává vlastní dřevo, fakturujeme jen službu (opálení/úprava)
+    # podle jeho vlastního ceníku - viz PartnerPriceItem.
+    is_partner = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     contacts = relationship("Contact", back_populates="company", cascade="all, delete-orphan")
     deals = relationship("Deal", back_populates="company")
+    partner_price_items = relationship("PartnerPriceItem", back_populates="company", cascade="all, delete-orphan")

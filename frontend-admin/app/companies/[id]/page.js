@@ -25,6 +25,19 @@ export default function CompanyDetailPage() {
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState(null);
 
+  const [partnerPrices, setPartnerPrices] = useState([]);
+  const [showPartnerPriceForm, setShowPartnerPriceForm] = useState(false);
+  const [editingPartnerPriceId, setEditingPartnerPriceId] = useState(null);
+  const [partnerPriceForm, setPartnerPriceForm] = useState({
+    name: "",
+    wood_type: "",
+    dimensions: "",
+    profile: "",
+    length: "",
+    surface: "",
+    service_price_per_m2: "",
+  });
+
   const [showDealForm, setShowDealForm] = useState(false);
   const [dealForm, setDealForm] = useState({
     name: "",
@@ -50,12 +63,14 @@ export default function CompanyDetailPage() {
       api.get(`/contacts?company_id=${id}`),
       api.get(`/deals?company_id=${id}`),
       api.get(`/documents?company_id=${id}`),
+      api.get(`/partner-price-items?company_id=${id}`),
     ])
-      .then(([c, ct, d, docs]) => {
+      .then(([c, ct, d, docs, pp]) => {
         setCompany(c);
         setContacts(ct);
         setDeals(d);
         setDocuments(docs);
+        setPartnerPrices(pp);
       })
       .catch((err) => setError(err.message));
   }
@@ -108,6 +123,7 @@ export default function CompanyDetailPage() {
       website: company.website || "",
       address: company.address || "",
       notes: company.notes || "",
+      is_partner: company.is_partner || false,
     });
     setEditingCompany(true);
   }
@@ -118,6 +134,62 @@ export default function CompanyDetailPage() {
     try {
       await api.put(`/companies/${id}`, companyForm);
       setEditingCompany(false);
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  const emptyPartnerPriceForm = {
+    name: "",
+    wood_type: "",
+    dimensions: "",
+    profile: "",
+    length: "",
+    surface: "",
+    service_price_per_m2: "",
+  };
+
+  function startEditPartnerPrice(item) {
+    setPartnerPriceForm({
+      name: item.name,
+      wood_type: item.wood_type || "",
+      dimensions: item.dimensions || "",
+      profile: item.profile || "",
+      length: item.length || "",
+      surface: item.surface || "",
+      service_price_per_m2: String(item.service_price_per_m2),
+    });
+    setEditingPartnerPriceId(item.id);
+    setShowPartnerPriceForm(true);
+  }
+
+  async function handleSavePartnerPrice(e) {
+    e.preventDefault();
+    setError("");
+    const payload = {
+      ...partnerPriceForm,
+      service_price_per_m2: Number(partnerPriceForm.service_price_per_m2),
+    };
+    try {
+      if (editingPartnerPriceId) {
+        await api.put(`/partner-price-items/${editingPartnerPriceId}`, payload);
+      } else {
+        await api.post("/partner-price-items", { ...payload, company_id: id });
+      }
+      setShowPartnerPriceForm(false);
+      setEditingPartnerPriceId(null);
+      setPartnerPriceForm(emptyPartnerPriceForm);
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDeletePartnerPrice(itemId) {
+    if (!window.confirm("Opravdu smazat tuto položku ceníku?")) return;
+    try {
+      await api.delete(`/partner-price-items/${itemId}`);
       loadAll();
     } catch (err) {
       setError(err.message);
@@ -217,7 +289,26 @@ export default function CompanyDetailPage() {
     <ProtectedShell>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h1 className="page-title">{company.name}</h1>
+          <h1 className="page-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {company.name}
+            {company.is_partner && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  color: "var(--ember-600)",
+                  background: "var(--ember-500)15",
+                  border: "1px solid var(--ember-500)",
+                  borderRadius: 6,
+                  padding: "3px 8px",
+                }}
+              >
+                Partner
+              </span>
+            )}
+          </h1>
           <p className="page-subtitle">
             {company.ico ? `IČO ${company.ico}` : ""} {company.dic ? `· DIČ ${company.dic}` : ""}
           </p>
@@ -313,6 +404,16 @@ export default function CompanyDetailPage() {
                   value={companyForm.notes}
                   onChange={(e) => setCompanyForm({ ...companyForm, notes: e.target.value })}
                 />
+              </div>
+              <div className="field">
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={companyForm.is_partner}
+                    onChange={(e) => setCompanyForm({ ...companyForm, is_partner: e.target.checked })}
+                  />
+                  Partner (dodává vlastní dřevo, fakturujeme jen službu)
+                </label>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-primary" type="submit">
@@ -484,6 +585,146 @@ export default function CompanyDetailPage() {
           )}
         </div>
       </div>
+
+      {company.is_partner && (
+        <div className="card" style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontWeight: 600 }}>Ceník partnera</div>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: "4px 10px", fontSize: 12.5 }}
+              onClick={() => {
+                setShowPartnerPriceForm(!showPartnerPriceForm);
+                setEditingPartnerPriceId(null);
+                setPartnerPriceForm(emptyPartnerPriceForm);
+              }}
+            >
+              {showPartnerPriceForm ? "Zrušit" : "+ Nová položka"}
+            </button>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--ink-600)", marginBottom: 12 }}>
+            Cena služby bez dopravy bez DPH za m² - partner dodává vlastní dřevo, fakturuje se jen opálení/úprava.
+          </div>
+
+          {showPartnerPriceForm && (
+            <form
+              onSubmit={handleSavePartnerPrice}
+              style={{ marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid var(--paper-200)" }}
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                <div className="field">
+                  <label>Název *</label>
+                  <input
+                    required
+                    value={partnerPriceForm.name}
+                    onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, name: e.target.value })}
+                    placeholder="např. Atacama - STANDARD"
+                  />
+                </div>
+                <div className="field">
+                  <label>Dřevina</label>
+                  <input
+                    value={partnerPriceForm.wood_type}
+                    onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, wood_type: e.target.value })}
+                    placeholder="Borovice / Modřín"
+                  />
+                </div>
+                <div className="field">
+                  <label>Rozměr (mm)</label>
+                  <input
+                    value={partnerPriceForm.dimensions}
+                    onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, dimensions: e.target.value })}
+                    placeholder="20x145"
+                  />
+                </div>
+                <div className="field">
+                  <label>Profil</label>
+                  <input
+                    value={partnerPriceForm.profile}
+                    onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, profile: e.target.value })}
+                    placeholder="Falcovaný (Z)"
+                  />
+                </div>
+                <div className="field">
+                  <label>Délka (m)</label>
+                  <input
+                    value={partnerPriceForm.length}
+                    onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, length: e.target.value })}
+                    placeholder="3/4/5"
+                  />
+                </div>
+                <div className="field">
+                  <label>Cena služby/m² bez DPH *</label>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    value={partnerPriceForm.service_price_per_m2}
+                    onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, service_price_per_m2: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="field">
+                <label>Povrch</label>
+                <input
+                  value={partnerPriceForm.surface}
+                  onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, surface: e.target.value })}
+                  placeholder="hluboce opálený - 100% černý"
+                />
+              </div>
+              <button className="btn btn-primary" type="submit">
+                {editingPartnerPriceId ? "Uložit změny" : "Přidat položku"}
+              </button>
+            </form>
+          )}
+
+          {partnerPrices.length === 0 ? (
+            <div style={{ fontSize: 13, color: "var(--ink-400)" }}>Zatím žádné položky ceníku.</div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Název</th>
+                  <th>Dřevina / rozměr / profil</th>
+                  <th>Povrch</th>
+                  <th>Cena služby/m²</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {partnerPrices.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ fontWeight: 600 }}>{item.name}</td>
+                    <td className="mono" style={{ fontSize: 12.5 }}>
+                      {[item.wood_type, item.dimensions, item.profile, item.length && `${item.length} m`]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </td>
+                    <td style={{ fontSize: 12.5 }}>{item.surface || "—"}</td>
+                    <td className="mono">{Number(item.service_price_per_m2).toLocaleString("cs-CZ")} Kč</td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: "3px 8px", fontSize: 12, marginRight: 6 }}
+                        onClick={() => startEditPartnerPrice(item)}
+                      >
+                        Upravit
+                      </button>
+                      <button
+                        className="btn btn-danger"
+                        style={{ padding: "3px 8px", fontSize: 12 }}
+                        onClick={() => handleDeletePartnerPrice(item.id)}
+                      >
+                        Smazat
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ fontWeight: 600 }}>Obchodní případy</div>

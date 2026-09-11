@@ -135,6 +135,7 @@ export default function DealDetailPage() {
   const [editingDeal, setEditingDeal] = useState(false);
   const [dealEditForm, setDealEditForm] = useState(null);
   const [quickEditingDateField, setQuickEditingDateField] = useState(null);
+  const [partnerPriceItems, setPartnerPriceItems] = useState([]);
 
   function loadAll() {
     api
@@ -149,9 +150,10 @@ export default function DealDetailPage() {
           api.get(`/deals/${id}/documents`),
           api.get(`/deals/${id}/attachments`),
           api.get(`/deals/${id}/notes`),
+          api.get(`/partner-price-items?company_id=${d.company_id}`),
         ]);
       })
-      .then(async ([c, dealContacts, usersData, calcs, docs, attachmentsData, notesData]) => {
+      .then(async ([c, dealContacts, usersData, calcs, docs, attachmentsData, notesData, partnerPrices]) => {
         setCompany(c);
         setCompanyContacts(dealContacts);
         setUsers(usersData);
@@ -159,6 +161,7 @@ export default function DealDetailPage() {
         setDocuments(docs);
         setAttachments(attachmentsData);
         setNotes(notesData);
+        setPartnerPriceItems(partnerPrices);
         const itemsEntries = await Promise.all(
           calcs.map(async (calc) => [calc.id, await api.get(`/calculations/${calc.id}/items`)])
         );
@@ -590,6 +593,25 @@ export default function DealDetailPage() {
       unit: "m²",
       quantity: areaM2 ? String(materialQuantity) : getItemForm(calcId).quantity,
       unit_price: String(suggestedPrice),
+    });
+  }
+
+  function handleApplyPartnerPrice(calcId, itemId, areaM2) {
+    const item = partnerPriceItems.find((p) => p.id === itemId);
+    if (!item) return;
+    // Partner dodává vlastní dřevo - fakturujeme JEN cenu služby z jeho
+    // ceníku, žádný materiál ani další marže (ta cena je už finální).
+    const descriptionParts = [item.wood_type, item.dimensions, item.profile, item.length && `${item.length} m`, item.surface]
+      .filter(Boolean)
+      .join(", ");
+    const itemName = descriptionParts ? `${item.name} (${descriptionParts})` : item.name;
+
+    setItemForm(calcId, {
+      category: "Práce",
+      name: itemName,
+      unit: "m²",
+      quantity: areaM2 ? String(Number(areaM2)) : getItemForm(calcId).quantity,
+      unit_price: String(item.service_price_per_m2),
     });
   }
 
@@ -1842,6 +1864,40 @@ export default function DealDetailPage() {
                               </option>
                             ))}
                           </select>
+                        </div>
+                      </div>
+                    )}
+                    {company?.is_partner && partnerPriceItems.length > 0 && (
+                      <div
+                        style={{
+                          background: "#fdf3ec",
+                          border: "1px solid var(--ember-500)",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          marginBottom: 10,
+                        }}
+                      >
+                        <div className="field" style={{ marginBottom: 0 }}>
+                          <label style={{ color: "var(--ember-600)" }}>🤝 Předvyplnit ze servisního ceníku partnera</label>
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) handleApplyPartnerPrice(c.id, e.target.value, c.area_m2);
+                              e.target.value = "";
+                            }}
+                            defaultValue=""
+                          >
+                            <option value="" disabled>
+                              — vyber položku ceníku —
+                            </option>
+                            {partnerPriceItems.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} {p.dimensions ? `(${p.dimensions})` : ""} – {Number(p.service_price_per_m2).toLocaleString("cs-CZ")} Kč/m²
+                              </option>
+                            ))}
+                          </select>
+                          <div style={{ fontSize: 11, color: "var(--ink-400)", marginTop: 4 }}>
+                            Partner dodává vlastní dřevo - fakturuje se jen služba, žádný materiál.
+                          </div>
                         </div>
                       </div>
                     )}

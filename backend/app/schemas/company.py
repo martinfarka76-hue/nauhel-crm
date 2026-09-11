@@ -11,6 +11,7 @@ class CompanyBase(BaseModel):
     website: Optional[str] = None
     address: Optional[str] = None
     notes: Optional[str] = None
+    is_partner: bool = False
 
 
 class CompanyCreate(CompanyBase):
@@ -24,6 +25,7 @@ class CompanyUpdate(BaseModel):
     website: Optional[str] = None
     address: Optional[str] = None
     notes: Optional[str] = None
+    is_partner: Optional[bool] = None
 
 
 class CompanyOut(CompanyBase):

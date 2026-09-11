@@ -14,6 +14,7 @@ from app.models.notification import Notification
 from app.models.folder_sequence import FolderSequence
 from app.models.deal_attachment import DealAttachment
 from app.models.deal_note import DealNote
+from app.models.partner_price_item import PartnerPriceItem
 from app.models.enums import DealStatus, DocumentType, UserRole, ItemCategory
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "FolderSequence",
     "DealAttachment",
     "DealNote",
+    "PartnerPriceItem",
     "DealStatus",
     "DocumentType",
     "UserRole",
