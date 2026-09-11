@@ -1893,7 +1893,9 @@ export default function DealDetailPage() {
                         }}
                       >
                         <div className="field" style={{ marginBottom: 0 }}>
-                          <label style={{ color: "var(--ember-600)" }}>🤝 Předvyplnit ze servisního ceníku partnera</label>
+                          <label style={{ color: "var(--ember-600)" }}>
+                            🤝 Předvyplnit ze servisního ceníku partnera{company?.name ? ` (${company.name})` : ""}
+                          </label>
                           <select
                             onChange={(e) => {
                               if (e.target.value) handleApplyPartnerPrice(c.id, e.target.value, c.area_m2);
@@ -1906,7 +1908,8 @@ export default function DealDetailPage() {
                             </option>
                             {partnerPriceItems.map((p) => (
                               <option key={p.id} value={p.id}>
-                                {p.name} {p.dimensions ? `(${p.dimensions})` : ""} – {Number(p.service_price_per_m2).toLocaleString("cs-CZ")} Kč/m²
+                                {p.name}
+                                {p.wood_type ? ` - ${p.wood_type}` : ""} {p.dimensions ? `(${p.dimensions})` : ""} – {Number(p.service_price_per_m2).toLocaleString("cs-CZ")} Kč/m²
                               </option>
                             ))}
                           </select>
