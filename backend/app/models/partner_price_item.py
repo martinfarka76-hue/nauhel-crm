@@ -21,10 +21,16 @@ class PartnerPriceItem(Base):
 
     name = Column(String(255), nullable=False)  # např. "Atacama - STANDARD"
     wood_type = Column(String(100), nullable=True)  # např. "Borovice", "Modřín"
-    dimensions = Column(String(50), nullable=True)  # např. "20x145"
+    dimensions = Column(String(50), nullable=True)  # popisný text, např. "20x145"
     profile = Column(String(100), nullable=True)  # např. "Falcovaný (Z)"
     length = Column(String(50), nullable=True)  # např. "3/4/5"
     surface = Column(String(255), nullable=True)  # "Povrch" - např. "hluboce opálený - 100% černý"
+
+    # Číselné rozměry pro výpočet navýšení množství (šířka/efektivní šířka) -
+    # stejná logika jako u WoodSpecies. Nepovinné - dokud nejsou vyplněné,
+    # množství se nenavyšuje (použije se přesně zadaná plocha).
+    width_mm = Column(Numeric(7, 2), nullable=True)
+    width_effective_mm = Column(Numeric(7, 2), nullable=True)
 
     service_price_per_m2 = Column(Numeric(10, 2), nullable=False)  # Cena služby bez dopravy bez DPH
 

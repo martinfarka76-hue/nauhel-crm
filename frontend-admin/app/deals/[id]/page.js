@@ -601,16 +601,31 @@ export default function DealDetailPage() {
     if (!item) return;
     // Partner dodává vlastní dřevo - fakturujeme JEN cenu služby z jeho
     // ceníku, žádný materiál ani další marže (ta cena je už finální).
+    // Stejně jako u vlastních dřevin se ale množství navýší podle poměru
+    // šířka/efektivní šířka - i partnerovi fyzicky opalujeme víc prken,
+    // než kolik reálně pokryje fasádu.
+    const widthMm = Number(item.width_mm) || 0;
+    const widthEffMm = Number(item.width_effective_mm) || 0;
+    const facadeArea = areaM2 ? Number(areaM2) : Number(getItemForm(calcId).quantity) || 0;
+
+    let serviceQuantity = facadeArea;
+    let itemName = item.name;
     const descriptionParts = [item.wood_type, item.dimensions, item.profile, item.length && `${item.length} m`, item.surface]
       .filter(Boolean)
       .join(", ");
-    const itemName = descriptionParts ? `${item.name} (${descriptionParts})` : item.name;
+
+    if (widthMm > 0 && widthEffMm > 0 && widthEffMm < widthMm && facadeArea > 0) {
+      serviceQuantity = Math.round(facadeArea * (widthMm / widthEffMm) * 100) / 100;
+      itemName = `${item.name}${descriptionParts ? ` (${descriptionParts})` : ""} (Krycí plocha fasády: ${facadeArea} m² → potřebné množství materiálu: ${serviceQuantity} m²)`;
+    } else if (descriptionParts) {
+      itemName = `${item.name} (${descriptionParts})`;
+    }
 
     setItemForm(calcId, {
       category: "Práce",
       name: itemName,
       unit: "m²",
-      quantity: areaM2 ? String(Number(areaM2)) : getItemForm(calcId).quantity,
+      quantity: areaM2 ? String(serviceQuantity) : getItemForm(calcId).quantity,
       unit_price: String(item.service_price_per_m2),
     });
   }

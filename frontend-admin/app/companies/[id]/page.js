@@ -147,6 +147,8 @@ export default function CompanyDetailPage() {
     profile: "",
     length: "",
     surface: "",
+    width_mm: "",
+    width_effective_mm: "",
     service_price_per_m2: "",
   };
 
@@ -158,6 +160,8 @@ export default function CompanyDetailPage() {
       profile: item.profile || "",
       length: item.length || "",
       surface: item.surface || "",
+      width_mm: item.width_mm != null ? String(item.width_mm) : "",
+      width_effective_mm: item.width_effective_mm != null ? String(item.width_effective_mm) : "",
       service_price_per_m2: String(item.service_price_per_m2),
     });
     setEditingPartnerPriceId(item.id);
@@ -169,6 +173,8 @@ export default function CompanyDetailPage() {
     setError("");
     const payload = {
       ...partnerPriceForm,
+      width_mm: partnerPriceForm.width_mm ? Number(partnerPriceForm.width_mm) : null,
+      width_effective_mm: partnerPriceForm.width_effective_mm ? Number(partnerPriceForm.width_effective_mm) : null,
       service_price_per_m2: Number(partnerPriceForm.service_price_per_m2),
     };
     try {
@@ -654,6 +660,26 @@ export default function CompanyDetailPage() {
                   />
                 </div>
                 <div className="field">
+                  <label>Šířka (mm)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={partnerPriceForm.width_mm}
+                    onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, width_mm: e.target.value })}
+                    placeholder="145"
+                  />
+                </div>
+                <div className="field">
+                  <label>Efektivní krycí šířka (mm)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={partnerPriceForm.width_effective_mm}
+                    onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, width_effective_mm: e.target.value })}
+                    placeholder="125"
+                  />
+                </div>
+                <div className="field">
                   <label>Cena služby/m² bez DPH *</label>
                   <input
                     required
@@ -663,6 +689,9 @@ export default function CompanyDetailPage() {
                     onChange={(e) => setPartnerPriceForm({ ...partnerPriceForm, service_price_per_m2: e.target.value })}
                   />
                 </div>
+              </div>
+              <div style={{ fontSize: 11, color: "var(--ink-400)", marginBottom: 8 }}>
+                Šířka a efektivní krycí šířka jsou nepovinné - pokud vyplněné, množství se automaticky navýší (stejně jako u vlastních dřevin), ať se fakturuje skutečně zpracovaná plocha prken, ne jen čistá plocha fasády.
               </div>
               <div className="field">
                 <label>Povrch</label>

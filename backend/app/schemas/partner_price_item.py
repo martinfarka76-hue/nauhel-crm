@@ -11,6 +11,8 @@ class PartnerPriceItemBase(BaseModel):
     profile: Optional[str] = None
     length: Optional[str] = None
     surface: Optional[str] = None
+    width_mm: Optional[Decimal] = None
+    width_effective_mm: Optional[Decimal] = None
     service_price_per_m2: Decimal
 
 
@@ -25,6 +27,8 @@ class PartnerPriceItemUpdate(BaseModel):
     profile: Optional[str] = None
     length: Optional[str] = None
     surface: Optional[str] = None
+    width_mm: Optional[Decimal] = None
+    width_effective_mm: Optional[Decimal] = None
     service_price_per_m2: Optional[Decimal] = None
 
 
