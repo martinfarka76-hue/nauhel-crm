@@ -601,10 +601,12 @@ export default function DealDetailPage() {
     const fuel = pricingParams.fuel_price_per_km ?? 0;
     const driver = pricingParams.driver_price_per_km ?? 0;
     const fixedCost = pricingParams.transport_fixed_to_customer ?? 0;
+    const marginDoprava = pricingParams.margin_doprava ?? 0;
     const distance = Number(distanceKm);
-    const total = distance * (fuel + driver) + fixedCost;
-    // Jednotka "km" - jednotková cena je celková cena rozpočítaná na km (včetně
-    // fixního nákladu), ať součet (množství × jedn. cena) sedí na celkovou částku.
+    const totalBeforeMargin = distance * (fuel + driver) + fixedCost;
+    const total = totalBeforeMargin * (1 + marginDoprava);
+    // Jednotka "km" - jednotková cena je celková cena (vč. marže) rozpočítaná na
+    // km (včetně fixního nákladu), ať součet (množství × jedn. cena) sedí na celkovou částku.
     const unitPrice = distance > 0 ? Math.round((total / distance) * 100) / 100 : 0;
 
     setItemForm(calcId, {
@@ -617,10 +619,18 @@ export default function DealDetailPage() {
   }
 
   function handleApplyInstallation(calcId, areaM2) {
-    const price = pricingParams.installation_price_per_m2 ?? 0;
+    // Podle listu "Kalkulace" ve zdrojovém Excelu: sazba montáže = (obklad +
+    // jednoduchý rošt), nejdřív "očištěná" o marži montáže a pak se marže
+    // zpátky přičte - čistý efekt je násobek (1-marže)×(1+marže). Přesně
+    // ověřeno na haléř proti zdrojovému souboru.
+    const obklad = pricingParams.installation_price_per_m2 ?? 0;
+    const rost = pricingParams.montaz_rost_jednoduchy_per_m2 ?? 0;
+    const marginInstallation = pricingParams.margin_installation ?? 0;
+    const price =
+      Math.round((obklad + rost) * (1 - marginInstallation) * (1 + marginInstallation) * 100) / 100;
     setItemForm(calcId, {
       category: "Práce",
-      name: "Montáž",
+      name: "Montáž (obklad + jednoduchý rošt)",
       unit: "m²",
       quantity: areaM2 ? String(Number(areaM2)) : getItemForm(calcId).quantity,
       unit_price: String(price),
