@@ -139,3 +139,26 @@ services:
       resources:
         limits:
           memory: 128M
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+    container_name: crm-mcp-server
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-http://localhost:18084}
+      MCP_BACKEND_URL: http://backend:8000
+      MCP_DATA_DIR: /app/data
+      MCP_PORT: "8000"
+    ports:
+      - "127.0.0.1:18084:8000"
+    volumes:
+      - ./data/mcp-server:/app/data
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 256M

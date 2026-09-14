@@ -48,7 +48,13 @@ def create_deal_note(
     if not payload.content.strip():
         raise HTTPException(status_code=422, detail="Poznámka nemůže být prázdná.")
 
-    note = DealNote(deal_id=deal_id, author_user_id=current_user.id, content=payload.content.strip())
+    note = DealNote(
+        deal_id=deal_id,
+        author_user_id=current_user.id,
+        content=payload.content.strip(),
+        is_task=payload.is_task,
+        due_date=payload.due_date,
+    )
     db.add(note)
     db.commit()
     db.refresh(note)
