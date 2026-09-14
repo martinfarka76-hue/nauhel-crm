@@ -196,6 +196,15 @@ export default function DashboardPage() {
 
   useEffect(loadAll, []);
 
+  async function handleCompleteFollowup(dealId) {
+    try {
+      await api.put(`/deals/${dealId}`, { next_contact_date: null });
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   useEffect(() => {
     if (!newDealForm.company_id) {
       setNewDealContacts([]);
@@ -692,8 +701,29 @@ export default function DashboardPage() {
                       <strong>{d.name}</strong>
                       {companies[d.company_id] && <span style={{ color: "var(--ink-600)" }}> · {companies[d.company_id]}</span>}
                     </span>
-                    <span style={{ color: isOverdue ? "var(--danger, #a13d3d)" : "var(--ink-600)", fontWeight: isOverdue ? 700 : 400 }}>
-                      {formatDateShort(d.next_contact_date)}
+                    <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ color: isOverdue ? "var(--danger, #a13d3d)" : "var(--ink-600)", fontWeight: isOverdue ? 700 : 400 }}>
+                        {formatDateShort(d.next_contact_date)}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCompleteFollowup(d.id);
+                        }}
+                        title="Označit follow-up jako hotový"
+                        style={{
+                          background: "none",
+                          border: "1px solid var(--paper-200)",
+                          borderRadius: 6,
+                          padding: "3px 8px",
+                          fontSize: 11.5,
+                          cursor: "pointer",
+                          color: "var(--ink-600)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        ✓ Hotovo
+                      </button>
                     </span>
                   </div>
                 );
