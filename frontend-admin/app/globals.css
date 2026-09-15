@@ -398,6 +398,10 @@ textarea {
   color: var(--ember-600, #9c5424);
   margin-bottom: 3px;
   line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .deal-card-company {

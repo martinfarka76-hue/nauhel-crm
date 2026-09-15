@@ -792,7 +792,7 @@ export default function DashboardPage() {
                             </span>
                           )}
                         </div>
-                        <div className="deal-card-name">{deal.name}</div>
+                        <div className="deal-card-name" title={deal.name}>{deal.name}</div>
                         <div className="deal-card-price mono">{formatPrice(deal.price)}</div>
 
                         {(deal.expected_close_date || deal.sharepoint_folder_url) && (
