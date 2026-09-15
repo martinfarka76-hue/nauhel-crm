@@ -335,6 +335,13 @@ textarea {
   flex: 1;
   min-height: 0;
   padding-right: 4px;
+  background-image:
+    linear-gradient(to bottom, transparent, var(--paper-50) 70%),
+    linear-gradient(to top, rgba(14, 12, 9, 0.18), rgba(14, 12, 9, 0));
+  background-repeat: no-repeat;
+  background-position: bottom, bottom;
+  background-size: 100% 40px, 100% 16px;
+  background-attachment: local, scroll;
 }
 
 .kanban-col-totals {
