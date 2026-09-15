@@ -76,6 +76,7 @@ class McpDealListItem(BaseModel):
     weighted_volume: Optional[Decimal] = None
     expected_close_date: Optional[date] = None
     next_contact_date: Optional[date] = None
+    created_at: Optional[str] = None
 
 
 class McpDealNoteOut(BaseModel):
@@ -98,6 +99,7 @@ class McpDealDetail(BaseModel):
     expected_invoice_date: Optional[date] = None
     next_contact_date: Optional[date] = None
     deposit_paid: bool
+    created_at: Optional[str] = None
     company: McpCompanyOut
     contact: Optional[McpContactOut] = None
     documents: list[str]
@@ -135,6 +137,7 @@ def mcp_list_deals(
                 weighted_volume=_weighted_volume(deal, db),
                 expected_close_date=deal.expected_close_date,
                 next_contact_date=deal.next_contact_date,
+                created_at=deal.created_at.isoformat() if deal.created_at else None,
             )
         )
     return result
@@ -187,6 +190,7 @@ def mcp_get_deal(deal_id: uuid.UUID, db: Session = Depends(get_db)):
         expected_invoice_date=deal.expected_invoice_date,
         next_contact_date=deal.next_contact_date,
         deposit_paid=deal.deposit_paid,
+        created_at=deal.created_at.isoformat() if deal.created_at else None,
         company=McpCompanyOut.model_validate(deal.company),
         contact=McpContactOut.model_validate(deal.contact) if deal.contact else None,
         documents=document_labels,
