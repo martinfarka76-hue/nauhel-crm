@@ -2042,6 +2042,11 @@ export default function DealDetailPage() {
             + Nová verze nabídky
           </button>
         </div>
+        <div style={{ fontSize: 12, color: "var(--ink-500)", marginBottom: 10 }}>
+          Vygenerovaný dokument (PDF) se zpětně needituje - je to neměnný záznam toho, co bylo zákazníkovi
+          nabídnuto. Pro jiná čísla uprav kalkulaci výše a klikni na "+ Nová verze nabídky" - vznikne nová
+          verze, starší zůstanou beze změny jako historie.
+        </div>
         {documents.length === 0 ? (
           <div style={{ fontSize: 13.5, color: "var(--ink-400)" }}>Zatím žádné dokumenty</div>
         ) : (
