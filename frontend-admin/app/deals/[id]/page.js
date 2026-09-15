@@ -2072,6 +2072,11 @@ export default function DealDetailPage() {
             + Nová verze nabídky
           </button>
         </div>
+        {(deal.status === "Lead" || deal.status === "Kvalifikovaný lead") && (
+          <div style={{ fontSize: 12, color: "var(--ember-600)", marginBottom: 6, fontWeight: 600 }}>
+            ⚠️ Vytvoření nabídky automaticky přesune případ do stavu "Nabídka".
+          </div>
+        )}
         <div style={{ fontSize: 12, color: "var(--ink-500)", marginBottom: 10 }}>
           Vygenerovaný dokument (PDF) se zpětně needituje - je to neměnný záznam toho, co bylo zákazníkovi
           nabídnuto. Pro jiná čísla uprav kalkulaci výše a klikni na "+ Nová verze nabídky" - vznikne nová
