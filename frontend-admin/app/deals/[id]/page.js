@@ -65,7 +65,7 @@ function money(value) {
   return Number(value).toLocaleString("cs-CZ") + " Kč";
 }
 
-const emptyItemForm = { category: "Materiál", name: "", unit: "", quantity: "", unit_price: "" };
+const emptyItemForm = { category: "Materiál", name: "", unit: "", quantity: "", unit_price: "", item_area_m2: "" };
 const DEFAULT_WOOD_SPECIES_NAME = 'Modřín Evropský "Z" 20x145, délka 4000mm';
 
 export default function DealDetailPage() {
@@ -1851,6 +1851,34 @@ export default function DealDetailPage() {
                       <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-600)", marginBottom: 10 }}>
                         + Přidat položku
                       </div>
+                    {form.category === "Materiál" &&
+                      c.area_m2 != null &&
+                      (woodSpeciesList.length > 0 || (company?.is_partner && partnerPriceItems.length > 0)) && (
+                        <div
+                          style={{
+                            background: "var(--paper-50)",
+                            border: "1px solid var(--paper-200)",
+                            borderRadius: 8,
+                            padding: "10px 12px",
+                            marginBottom: 10,
+                          }}
+                        >
+                          <div className="field" style={{ marginBottom: 0 }}>
+                            <label>📐 Plocha pro tuto položku (m²)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder={`Výchozí z kalkulace: ${c.area_m2} m²`}
+                              value={form.item_area_m2}
+                              onChange={(e) => setItemForm(c.id, { item_area_m2: e.target.value })}
+                            />
+                            <div style={{ fontSize: 11, color: "var(--ink-500)", marginTop: 4 }}>
+                              Necháš-li prázdné, použije se celková plocha kalkulace ({c.area_m2} m²) - vyplň, pokud
+                              tahle položka pokrývá jen část (např. jednu délku prkna z více).
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     {form.category === "Materiál" && woodSpeciesList.length > 0 && (
                       <div
                         style={{
@@ -1865,7 +1893,8 @@ export default function DealDetailPage() {
                           <label style={{ color: "var(--ember-600)" }}>🪵 Předvyplnit z dřeviny</label>
                           <select
                             onChange={(e) => {
-                              if (e.target.value) handleApplyWoodSpecies(c.id, e.target.value, c.product_line, c.area_m2);
+                              const effectiveArea = form.item_area_m2 !== "" ? form.item_area_m2 : c.area_m2;
+                              if (e.target.value) handleApplyWoodSpecies(c.id, e.target.value, c.product_line, effectiveArea);
                               e.target.value = "";
                             }}
                             defaultValue=""
@@ -1898,7 +1927,8 @@ export default function DealDetailPage() {
                           </label>
                           <select
                             onChange={(e) => {
-                              if (e.target.value) handleApplyPartnerPrice(c.id, e.target.value, c.area_m2);
+                              const effectiveArea = form.item_area_m2 !== "" ? form.item_area_m2 : c.area_m2;
+                              if (e.target.value) handleApplyPartnerPrice(c.id, e.target.value, effectiveArea);
                               e.target.value = "";
                             }}
                             defaultValue=""
