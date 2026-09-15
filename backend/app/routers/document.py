@@ -210,6 +210,7 @@ def view_public_document(access_token: str, request: Request, db: Session = Depe
         company_ico=company.ico,
         company_dic=company.dic,
         company_address=company.address,
+        company_customer_type=company.customer_type.value if company.customer_type else None,
         deal_name=deal.name,
         calculation=calculation_public,
         has_invoice_pdf=bool(document.invoice_pdf_filename),

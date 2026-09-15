@@ -30,3 +30,8 @@ class ItemCategory(str, enum.Enum):
     PRACE = "Práce"
     DOPRAVA = "Doprava"
     OSTATNI = "Ostatní"
+
+
+class CustomerType(str, enum.Enum):
+    SPOTREBITEL = "Spotřebitel"
+    PODNIKATEL = "Podnikatel"

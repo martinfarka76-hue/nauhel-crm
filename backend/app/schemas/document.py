@@ -84,6 +84,7 @@ class DocumentPublicOut(BaseModel):
     company_ico: Optional[str] = None
     company_dic: Optional[str] = None
     company_address: Optional[str] = None
+    company_customer_type: Optional[str] = None
     deal_name: str
     calculation: Optional[CalculationPublicOut] = None
     has_invoice_pdf: bool = False

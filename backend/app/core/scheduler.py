@@ -26,10 +26,10 @@ TERMINAL_STATUSES = [DealStatus.FAKTUROVANO, DealStatus.ZTRACENO]
 def check_upcoming_followups() -> None:
     """
     Denní kontrola termínů dalšího kontaktu (next_contact_date) u Dealů.
-    Pokud je termín dnes nebo v minulosti, Deal není v koncovém stavu
-    (Fakturováno/Ztraceno), a notifikace pro tenhle termín ještě nebyla
-    vytvořena (next_contact_notified_at je NULL), vytvoří se notifikace
-    a nastaví se příznak - ať se stejná věc nepřipomíná znovu každý den.
+    Upozornění se vytvoří už DEN PŘED termínem, ať má obchodník čas se
+    připravit - a pak dál, dokud termín trvá/je po termínu. Deal nesmí být
+    v koncovém stavu (Fakturováno/Ztraceno) a notifikace pro tenhle termín
+    ještě nesmí být vytvořena (next_contact_notified_at je NULL).
     """
     db: Session = SessionLocal()
     try:
@@ -38,7 +38,7 @@ def check_upcoming_followups() -> None:
             db.query(Deal)
             .filter(
                 Deal.next_contact_date.isnot(None),
-                Deal.next_contact_date <= today,
+                Deal.next_contact_date <= today + timedelta(days=1),
                 Deal.next_contact_notified_at.is_(None),
                 Deal.status.notin_(TERMINAL_STATUSES),
             )
@@ -46,11 +46,14 @@ def check_upcoming_followups() -> None:
         )
 
         for deal in candidates:
-            overdue_days = (today - deal.next_contact_date).days
-            if overdue_days > 0:
-                message = f"Follow-up: \"{deal.name}\" - termín kontaktu byl {deal.next_contact_date.strftime('%d.%m.%Y')} ({overdue_days} dní po termínu)"
-            else:
+            days_until = (deal.next_contact_date - today).days
+            if days_until == 1:
+                message = f"Follow-up: \"{deal.name}\" - zítra je naplánovaný kontakt ({deal.next_contact_date.strftime('%d.%m.%Y')})"
+            elif days_until == 0:
                 message = f"Follow-up: \"{deal.name}\" - dnes je naplánovaný kontakt"
+            else:
+                overdue_days = -days_until
+                message = f"Follow-up: \"{deal.name}\" - termín kontaktu byl {deal.next_contact_date.strftime('%d.%m.%Y')} ({overdue_days} dní po termínu)"
 
             notification = Notification(
                 notification_type="followup_due",

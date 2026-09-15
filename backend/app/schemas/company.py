@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
+from app.models.enums import CustomerType
+
 
 class CompanyBase(BaseModel):
     name: str
@@ -12,6 +14,7 @@ class CompanyBase(BaseModel):
     address: Optional[str] = None
     notes: Optional[str] = None
     is_partner: bool = False
+    customer_type: CustomerType = CustomerType.PODNIKATEL
 
 
 class CompanyCreate(CompanyBase):
@@ -26,6 +29,7 @@ class CompanyUpdate(BaseModel):
     address: Optional[str] = None
     notes: Optional[str] = None
     is_partner: Optional[bool] = None
+    customer_type: Optional[CustomerType] = None
 
 
 class CompanyOut(CompanyBase):

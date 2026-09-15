@@ -124,6 +124,7 @@ export default function CompanyDetailPage() {
       address: company.address || "",
       notes: company.notes || "",
       is_partner: company.is_partner || false,
+      customer_type: company.customer_type || "Podnikatel",
     });
     setEditingCompany(true);
   }
@@ -420,6 +421,19 @@ export default function CompanyDetailPage() {
                   />
                   Partner (dodává vlastní dřevo, fakturujeme jen službu)
                 </label>
+              </div>
+              <div className="field">
+                <label>Typ zákazníka</label>
+                <select
+                  value={companyForm.customer_type}
+                  onChange={(e) => setCompanyForm({ ...companyForm, customer_type: e.target.value })}
+                >
+                  <option value="Podnikatel">Podnikatel</option>
+                  <option value="Spotřebitel">Spotřebitel</option>
+                </select>
+                <div style={{ fontSize: 11, color: "var(--ink-500)", marginTop: 4 }}>
+                  Určuje, které znění VOP se nabídne zákazníkovi k odsouhlasení při potvrzení objednávky.
+                </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-primary" type="submit">

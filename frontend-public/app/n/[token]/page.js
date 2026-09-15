@@ -49,7 +49,13 @@ export default function PublicOfferPage() {
   const [confirmError, setConfirmError] = useState("");
   const [confirmName, setConfirmName] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const VOP_URL = process.env.NEXT_PUBLIC_VOP_URL || "https://www.nauhel.cz/vop";
+  const VOP_URL_SPOTREBITEL =
+    process.env.NEXT_PUBLIC_VOP_URL_SPOTREBITEL ||
+    "https://www.nauhel.cz/_files/ugd/1ff622_00e59d445af84941a544e334889d3db0.pdf";
+  const VOP_URL_PODNIKATEL =
+    process.env.NEXT_PUBLIC_VOP_URL_PODNIKATEL ||
+    "https://www.nauhel.cz/_files/ugd/1ff622_75a2bef6478441fe92b8a60848bc6f5d.pdf";
+  const VOP_URL = offer?.company_customer_type === "Spotřebitel" ? VOP_URL_SPOTREBITEL : VOP_URL_PODNIKATEL;
   const viewIdRef = useRef(null);
   const startTimeRef = useRef(null);
 

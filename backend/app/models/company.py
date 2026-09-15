@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean
+from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+from app.models.enums import CustomerType
 
 
 class Company(Base):
@@ -23,6 +24,9 @@ class Company(Base):
     # Partner = dodává vlastní dřevo, fakturujeme jen službu (opálení/úprava)
     # podle jeho vlastního ceníku - viz PartnerPriceItem.
     is_partner = Column(Boolean, nullable=False, default=False)
+    customer_type = Column(
+        SAEnum(CustomerType, name="customertype"), nullable=False, default=CustomerType.PODNIKATEL
+    )
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
