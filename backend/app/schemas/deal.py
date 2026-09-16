@@ -18,6 +18,7 @@ class DealBase(BaseModel):
     expected_invoice_date: Optional[date] = None
     next_contact_date: Optional[date] = None
     deposit_paid: bool = False
+    skip_customer_emails: bool = False
 
 
 class DealCreate(DealBase):
@@ -34,6 +35,7 @@ class DealUpdate(BaseModel):
     expected_invoice_date: Optional[date] = None
     next_contact_date: Optional[date] = None
     deposit_paid: Optional[bool] = None
+    skip_customer_emails: Optional[bool] = None
 
 
 class DealOut(DealBase):

@@ -47,6 +47,8 @@ def notify_customer_document_created(db: Session, document: Document, deal: Deal
     """
     if document.document_type not in (DocumentType.NABIDKA, DocumentType.OBJEDNAVKA):
         return
+    if deal.skip_customer_emails:
+        return
     if not deal.contact_id:
         return
 

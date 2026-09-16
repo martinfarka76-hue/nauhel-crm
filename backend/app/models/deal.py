@@ -29,6 +29,7 @@ class Deal(Base):
     expected_close_date = Column(Date, nullable=True)
     expected_invoice_date = Column(Date, nullable=True)
     deposit_paid = Column(Boolean, nullable=False, default=False)
+    skip_customer_emails = Column(Boolean, nullable=False, default=False)
 
     # Follow-up připomínka - kdy se má obchodník příště ozvat zákazníkovi.
     # next_contact_notified_at slouží jen jako interní příznak (aby se

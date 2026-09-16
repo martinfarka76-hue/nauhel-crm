@@ -371,6 +371,7 @@ export default function DealDetailPage() {
       expected_invoice_date: deal.expected_invoice_date || "",
       next_contact_date: deal.next_contact_date || "",
       deposit_paid: deal.deposit_paid,
+      skip_customer_emails: deal.skip_customer_emails || false,
     });
     setEditingDeal(true);
   }
@@ -388,6 +389,7 @@ export default function DealDetailPage() {
         expected_invoice_date: dealEditForm.expected_invoice_date || null,
         next_contact_date: dealEditForm.next_contact_date || null,
         deposit_paid: dealEditForm.deposit_paid,
+        skip_customer_emails: dealEditForm.skip_customer_emails,
       });
       setEditingDeal(false);
       loadAll();
@@ -891,9 +893,11 @@ export default function DealDetailPage() {
       }
       return {
         title: "Vytvořte nabídku pro zákazníka",
-        description:
-          'Kalkulace je připravená. Kliknutím na "Přesunout do: Nabídka" se automaticky vygeneruje veřejný odkaz ' +
-          "a odešle e-mail zákazníkovi (pokud má odpovědný kontakt vyplněný e-mail).",
+        description: deal.skip_customer_emails
+          ? 'Kalkulace je připravená. Kliknutím na "Přesunout do: Nabídka" se vygeneruje veřejný odkaz - ' +
+            "e-mail se ale NEODEŠLE (u tohoto případu je zapnuto ruční vyplňování do formuláře zákazníka)."
+          : 'Kalkulace je připravená. Kliknutím na "Přesunout do: Nabídka" se automaticky vygeneruje veřejný odkaz ' +
+            "a odešle e-mail zákazníkovi (pokud má odpovědný kontakt vyplněný e-mail).",
         actionLabel: "Přesunout do: Nabídka",
         action: () => handleTransition("Nabídka"),
       };
@@ -910,9 +914,11 @@ export default function DealDetailPage() {
       if (!latestObjednavka?.confirmed_at) {
         return {
           title: "Čeká se na elektronické potvrzení objednávky",
-          description:
-            "Zákazník dostal e-mail s odkazem na potvrzení objednávky. Jakmile ji potvrdí, automaticky " +
-            "vznikne zálohová faktura a případ se posune dál.",
+          description: deal.skip_customer_emails
+            ? "E-mail se u tohoto případu neposílá (ruční vyplňování do formuláře zákazníka) - jakmile " +
+              "zákazník objednávku potvrdí (mimo systém), přesuň případ ručně dál."
+            : "Zákazník dostal e-mail s odkazem na potvrzení objednávky. Jakmile ji potvrdí, automaticky " +
+              "vznikne zálohová faktura a případ se posune dál.",
         };
       }
       return {
@@ -1296,6 +1302,17 @@ export default function DealDetailPage() {
                     style={{ marginRight: 6 }}
                   />
                   Záloha zaplacena
+                </label>
+              </div>
+              <div className="field">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={dealEditForm.skip_customer_emails}
+                    onChange={(e) => setDealEditForm({ ...dealEditForm, skip_customer_emails: e.target.checked })}
+                    style={{ marginRight: 6 }}
+                  />
+                  Nezasílat nabídku/objednávku e-mailem (vyplňuji ručně do formuláře zákazníka)
                 </label>
               </div>
             </div>
