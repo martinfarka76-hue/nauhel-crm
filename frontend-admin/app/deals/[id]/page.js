@@ -1080,7 +1080,7 @@ export default function DealDetailPage() {
                   const contact = companyContacts.find((c) => c.id === deal.contact_id);
                   if (!contact) return "—";
                   return (
-                    
+                    <a
                       onClick={(e) => {
                         e.preventDefault();
                         router.push(`/companies/${deal.company_id}#contact-${contact.id}`);
