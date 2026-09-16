@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Numeric, Boolean, DateTime, Date, ForeignKey
+from sqlalchemy import Column, String, Numeric, Boolean, DateTime, Date, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
@@ -48,6 +48,7 @@ class Calculation(Base):
     # na veřejné nabídce (např. "6-8 týdnů od objednávky", "Záloha 50 %...")
     delivery_terms = Column(String(255), nullable=True)
     payment_terms = Column(String(255), nullable=True)
+    customer_note = Column(Text, nullable=True)
 
     # Výše zálohy v % z celkové ceny - použije se při automatickém výpočtu
     # částky Zálohové faktury po potvrzení objednávky zákazníkem

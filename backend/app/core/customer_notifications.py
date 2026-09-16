@@ -4,6 +4,7 @@ kontaktu přiřazenému k Dealu (Deal.contact_id) - pokud kontakt není
 přiřazený, nebo nemá vyplněný email, odeslání se tiše přeskočí.
 """
 import os
+import html
 
 from sqlalchemy.orm import Session
 
@@ -12,6 +13,7 @@ from app.models.document import Document
 from app.models.deal import Deal
 from app.models.contact import Contact
 from app.models.company import Company
+from app.models.calculation import Calculation
 from app.models.enums import DocumentType
 
 SIGNATURE_HTML = (
@@ -58,10 +60,21 @@ def notify_customer_document_created(db: Session, document: Document, deal: Deal
     company_note = f" pro firmu {company.name}" if company else ""
 
     if document.document_type == DocumentType.NABIDKA:
+        calculation = (
+            db.query(Calculation).filter(Calculation.id == document.calculation_id).first()
+            if document.calculation_id
+            else None
+        )
+        note_html = ""
+        if calculation and calculation.customer_note and calculation.customer_note.strip():
+            escaped_note = html.escape(calculation.customer_note.strip()).replace("\n", "<br>")
+            note_html = f"<p>{escaped_note}</p>"
+
         subject = f"Nabídka od NAUHEL - {deal.name}"
         body_html = (
             f"<p>Dobrý den, {_salutation_and_surname(contact)},</p>"
             f"<p>zasíláme Vám cenovou nabídku na zakázku „{deal.name}“{company_note}.</p>"
+            f"{note_html}"
             f'<p><a href="{link}">Zobrazit nabídku</a></p>'
             f"<p>V případě dotazů nás neváhejte kontaktovat.</p>"
             f"{SIGNATURE_HTML}"

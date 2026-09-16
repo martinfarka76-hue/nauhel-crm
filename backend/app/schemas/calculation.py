@@ -21,6 +21,7 @@ class CalculationCreate(BaseModel):
     valid_until: Optional[date] = None
     delivery_terms: Optional[str] = None
     payment_terms: Optional[str] = None
+    customer_note: Optional[str] = None
     raw_snapshot: Optional[dict[str, Any]] = None
 
 
@@ -36,6 +37,7 @@ class CalculationUpdate(BaseModel):
     valid_until: Optional[date] = None
     delivery_terms: Optional[str] = None
     payment_terms: Optional[str] = None
+    customer_note: Optional[str] = None
     raw_snapshot: Optional[dict[str, Any]] = None
 
 
@@ -62,6 +64,7 @@ class CalculationOut(BaseModel):
     valid_until: Optional[date]
     delivery_terms: Optional[str]
     payment_terms: Optional[str]
+    customer_note: Optional[str] = None
     raw_snapshot: Optional[dict[str, Any]]
     created_at: datetime
     updated_at: datetime

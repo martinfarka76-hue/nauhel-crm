@@ -123,6 +123,7 @@ export default function DealDetailPage() {
     valid_until: getDefaultValidUntil(),
     delivery_terms: "6-8 týdnů od objednávky",
     payment_terms: "Zálohová faktura 50 % vystavena po potvrzení objednávky, finální faktura se splatností dnem dodání",
+    customer_note: "",
   });
 
   const [itemForms, setItemForms] = useState({}); // { [calcId]: itemForm }
@@ -505,6 +506,7 @@ export default function DealDetailPage() {
         valid_until: calcForm.valid_until || null,
         delivery_terms: calcForm.delivery_terms || null,
         payment_terms: calcForm.payment_terms || null,
+        customer_note: calcForm.customer_note || null,
       });
       setExpandedCalcs((prev) => ({ ...prev, [newCalc.id]: true }));
       setCalcForm({
@@ -519,6 +521,7 @@ export default function DealDetailPage() {
         valid_until: getDefaultValidUntil(),
         delivery_terms: "6-8 týdnů od objednávky",
         payment_terms: "Zálohová faktura 50 % vystavena po potvrzení objednávky, finální faktura se splatností dnem dodání",
+        customer_note: "",
       });
       setShowCalcForm(false);
       loadAll();
@@ -749,6 +752,7 @@ export default function DealDetailPage() {
       valid_until: c.valid_until || "",
       delivery_terms: c.delivery_terms || "",
       payment_terms: c.payment_terms || "",
+      customer_note: c.customer_note || "",
     });
   }
 
@@ -767,6 +771,7 @@ export default function DealDetailPage() {
         valid_until: editCalcForm.valid_until || null,
         delivery_terms: editCalcForm.delivery_terms || null,
         payment_terms: editCalcForm.payment_terms || null,
+        customer_note: editCalcForm.customer_note || null,
       });
       setCalculations((prev) => prev.map((c) => (c.id === calcId ? updatedCalc : c)));
       setEditingCalcId(null);
@@ -1517,6 +1522,18 @@ export default function DealDetailPage() {
                 placeholder="např. Záloha 50 % při objednávce, doplatek při předání díla"
               />
             </div>
+            <div className="field">
+              <label>Komentář k nabídce (jen v e-mailu zákazníkovi)</label>
+              <textarea
+                rows={3}
+                value={calcForm.customer_note}
+                onChange={(e) => setCalcForm({ ...calcForm, customer_note: e.target.value })}
+                placeholder="např. Spojovací vruty jsem zvolil černé nerezové, pro tento druh dřeva ideální a nešpiní."
+              />
+              <div style={{ fontSize: 11, color: "var(--ink-500)", marginTop: 4 }}>
+                Nezobrazuje se na veřejné stránce s nabídkou - jen v e-mailu, kterým se odkaz posílá.
+              </div>
+            </div>
             <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginBottom: 12 }}>
               Po uložení přidej jednotlivé položky (materiál, práci, dopravu) - cena se dopočítá
               automaticky z jejich součtu.
@@ -1707,6 +1724,18 @@ export default function DealDetailPage() {
                             value={editCalcForm.payment_terms}
                             onChange={(e) => setEditCalcForm({ ...editCalcForm, payment_terms: e.target.value })}
                           />
+                        </div>
+                        <div className="field">
+                          <label>Komentář k nabídce (jen v e-mailu zákazníkovi)</label>
+                          <textarea
+                            rows={3}
+                            value={editCalcForm.customer_note}
+                            onChange={(e) => setEditCalcForm({ ...editCalcForm, customer_note: e.target.value })}
+                            placeholder="např. Spojovací vruty jsem zvolil černé nerezové, pro tento druh dřeva ideální a nešpiní."
+                          />
+                          <div style={{ fontSize: 11, color: "var(--ink-500)", marginTop: 4 }}>
+                            Nezobrazuje se na veřejné stránce s nabídkou - jen v e-mailu, kterým se odkaz posílá.
+                          </div>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
                           <button
