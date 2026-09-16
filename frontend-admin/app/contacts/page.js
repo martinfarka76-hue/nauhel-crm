@@ -60,7 +60,7 @@ function CompanyAvatar({ name, website }) {
   );
 }
 
-const emptyNewContactForm = { company_id: "", first_name: "", last_name: "", email: "", phone: "", position: "" };
+const emptyNewContactForm = { company_id: "", first_name: "", last_name: "", email: "", phone: "", position: "", salutation: "" };
 
 export default function ContactsPage() {
   const router = useRouter();
@@ -333,6 +333,17 @@ export default function ContactsPage() {
                 value={newContactForm.position}
                 onChange={(e) => setNewContactForm({ ...newContactForm, position: e.target.value })}
               />
+            </div>
+            <div className="field">
+              <label>Oslovení pro e-maily</label>
+              <input
+                value={newContactForm.salutation}
+                onChange={(e) => setNewContactForm({ ...newContactForm, salutation: e.target.value })}
+                placeholder="např. pane Vaňku"
+              />
+              <div style={{ fontSize: 11, color: "var(--ink-500)", marginTop: 4 }}>
+                Nepovinné. Nevyplněno = "pane/paní Příjmení" (bez skloňování).
+              </div>
             </div>
             <button className="btn btn-primary" type="submit" disabled={saving}>
               {saving ? "Ukládám…" : "Uložit kontakt"}

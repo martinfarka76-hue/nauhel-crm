@@ -6,7 +6,7 @@ import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
 import { STATUS_COLORS } from "@/lib/constants";
 
-const emptyContactForm = { first_name: "", last_name: "", email: "", phone: "", position: "" };
+const emptyContactForm = { first_name: "", last_name: "", email: "", phone: "", position: "", salutation: "" };
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
 
 function formatDate(iso) {
@@ -259,6 +259,7 @@ export default function CompanyDetailPage() {
       email: contact.email || "",
       phone: contact.phone || "",
       position: contact.position || "",
+      salutation: contact.salutation || "",
     });
   }
 
@@ -509,6 +510,17 @@ export default function CompanyDetailPage() {
                   onChange={(e) => setNewContactForm({ ...newContactForm, position: e.target.value })}
                 />
               </div>
+              <div className="field" style={{ marginBottom: 8 }}>
+                <label>Oslovení pro e-maily</label>
+                <input
+                  value={newContactForm.salutation}
+                  onChange={(e) => setNewContactForm({ ...newContactForm, salutation: e.target.value })}
+                  placeholder="např. pane Vaňku"
+                />
+                <div style={{ fontSize: 11, color: "var(--ink-500)", marginTop: 4 }}>
+                  Nepovinné. Nevyplněno = "pane/paní Příjmení" (bez skloňování).
+                </div>
+              </div>
               <button className="btn btn-primary" type="submit">
                 Uložit kontakt
               </button>
@@ -556,6 +568,12 @@ export default function CompanyDetailPage() {
                     value={editContactForm.position}
                     onChange={(e) => setEditContactForm({ ...editContactForm, position: e.target.value })}
                     placeholder="pozice"
+                    style={{ fontSize: 13, padding: "5px 8px", width: "100%", marginTop: 6 }}
+                  />
+                  <input
+                    value={editContactForm.salutation}
+                    onChange={(e) => setEditContactForm({ ...editContactForm, salutation: e.target.value })}
+                    placeholder="oslovení pro e-maily, např. pane Vaňku"
                     style={{ fontSize: 13, padding: "5px 8px", width: "100%", marginTop: 6, marginBottom: 8 }}
                   />
                   <div style={{ display: "flex", gap: 6 }}>

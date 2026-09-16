@@ -24,11 +24,14 @@ SIGNATURE_HTML = (
 
 def _salutation_and_surname(contact: Contact) -> str:
     """
-    Sestaví oslovení "pane/paní Příjmení". Pohlaví se odhaduje podle
-    koncovky křestního jména (končí na "a" -> paní, jinak pane) - pokrývá
-    naprostou většinu běžných českých jmen bez rizika špatného skloňování
-    (příjmení se ponechává v 1. pádě, ne skloňované).
+    Vrátí oslovení k použití v e-mailu. Pokud má kontakt ručně vyplněné
+    Contact.salutation (např. "pane Vaňku" - správně skloněné), použije
+    se přesně to. Jinak se sestaví odhad "pane/paní Příjmení": pohlaví se
+    odhaduje podle koncovky křestního jména (končí na "a" -> paní, jinak
+    pane) - příjmení zůstává v 1. pádě, ne skloňované.
     """
+    if contact.salutation and contact.salutation.strip():
+        return contact.salutation.strip()
     first_name = (contact.first_name or "").strip()
     salutation = "paní" if first_name.lower().endswith("a") else "pane"
     return f"{salutation} {contact.last_name}"

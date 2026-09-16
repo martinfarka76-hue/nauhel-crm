@@ -11,6 +11,7 @@ class ContactBase(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     position: Optional[str] = None
+    salutation: Optional[str] = None
 
 
 class ContactCreate(ContactBase):
@@ -23,6 +24,7 @@ class ContactUpdate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     position: Optional[str] = None
+    salutation: Optional[str] = None
 
 
 class ContactOut(ContactBase):
