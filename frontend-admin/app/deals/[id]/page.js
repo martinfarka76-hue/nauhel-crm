@@ -1570,6 +1570,9 @@ export default function DealDetailPage() {
             const items = calcItems[c.id] || [];
             const form = getItemForm(c.id);
             const isExpanded = !!expandedCalcs[c.id];
+            const versionNumber = [...calculations]
+              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+              .findIndex((x) => x.id === c.id) + 1;
             return (
               <div
                 key={c.id}
@@ -1602,10 +1605,17 @@ export default function DealDetailPage() {
                     >
                       {isExpanded ? "▾" : "▸"}
                     </span>
-                    <strong style={{ fontSize: 14 }}>
-                      {c.product_line || "—"} {c.wood_species ? `/ ${c.wood_species}` : ""}
-                    </strong>
-                    {c.is_active && <span className="badge" style={{ background: "var(--success)" }}>aktivní</span>}
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <strong style={{ fontSize: 14 }}>
+                          {c.product_line || "—"} {c.wood_species ? `/ ${c.wood_species}` : ""}
+                        </strong>
+                        {c.is_active && <span className="badge" style={{ background: "var(--success)" }}>aktivní</span>}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: "var(--ink-400)", marginTop: 2 }}>
+                        Kalkulace #{versionNumber} · {formatDate(c.created_at)}
+                      </div>
+                    </div>
                   </div>
                   <strong className="mono" style={{ fontSize: 14 }}>{money(c.price_with_vat)}</strong>
                 </div>
