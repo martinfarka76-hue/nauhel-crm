@@ -1078,7 +1078,19 @@ export default function DealDetailPage() {
               <strong>
                 {(() => {
                   const contact = companyContacts.find((c) => c.id === deal.contact_id);
-                  return contact ? `${contact.first_name} ${contact.last_name}` : "—";
+                  if (!contact) return "—";
+                  return (
+                    
+                      onClick={(e) => {
+                        e.preventDefault();
+                        router.push(`/companies/${deal.company_id}#contact-${contact.id}`);
+                      }}
+                      href={`/companies/${deal.company_id}#contact-${contact.id}`}
+                      style={{ textDecoration: "underline", cursor: "pointer" }}
+                    >
+                      {contact.first_name} {contact.last_name}
+                    </a>
+                  );
                 })()}
               </strong>
             </span>

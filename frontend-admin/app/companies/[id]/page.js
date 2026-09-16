@@ -591,7 +591,7 @@ export default function CompanyDetailPage() {
                   </div>
                 </form>
               ) : (
-                <div key={c.id} style={{ fontSize: 13.5, marginBottom: 10 }}>
+                <div key={c.id} id={`contact-${c.id}`} style={{ fontSize: 13.5, marginBottom: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <div>
                       <strong>

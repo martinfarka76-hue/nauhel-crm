@@ -145,17 +145,21 @@ export default function ContactsPage() {
     }
   }
 
-  const filteredContacts = contacts.filter((c) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.trim().toLowerCase();
-    const company = companies[c.company_id];
-    return (
-      `${c.first_name} ${c.last_name}`.toLowerCase().includes(q) ||
-      (c.email || "").toLowerCase().includes(q) ||
-      (c.phone || "").toLowerCase().includes(q) ||
-      (company ? company.name.toLowerCase().includes(q) : false)
+  const filteredContacts = contacts
+    .filter((c) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.trim().toLowerCase();
+      const company = companies[c.company_id];
+      return (
+        `${c.first_name} ${c.last_name}`.toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q) ||
+        (c.phone || "").toLowerCase().includes(q) ||
+        (company ? company.name.toLowerCase().includes(q) : false)
+      );
+    })
+    .sort((a, b) =>
+      `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, "cs")
     );
-  });
 
   return (
     <ProtectedShell>
