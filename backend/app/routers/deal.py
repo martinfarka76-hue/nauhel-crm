@@ -9,7 +9,12 @@ from app.core.dependencies import get_current_user
 from app.core.deal_transitions import perform_transition
 from app.models.deal import Deal
 from app.models.deal_note import DealNote
+from app.models.deal_attachment import DealAttachment
 from app.models.document import Document
+from app.models.document_view import DocumentView
+from app.models.calculation import Calculation
+from app.models.calculation_item import CalculationItem
+from app.models.notification import Notification
 from app.models.enums import DealStatus, DocumentType
 from app.models.user import User
 from app.schemas.deal import DealCreate, DealUpdate, DealOut
@@ -82,9 +87,32 @@ def delete_deal(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """
+    Smaže Deal a VŠECHNY na něj navázané záznamy (v pořadí, které respektuje
+    cizí klíče - nejdřív "listy", pak "kořen"). Nemaže nic mimo databázi -
+    případná SharePoint složka zůstává a musí se smazat ručně, pokud je to
+    žádoucí (smazání externích souborů automaticky při každém smazání dealu
+    je záměrně mimo rozsah, ať se nemůže nedopatřením smazat něco, co má
+    hodnotu i mimo CRM).
+    """
     deal = db.query(Deal).filter(Deal.id == deal_id).first()
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
+
+    db.query(Notification).filter(Notification.deal_id == deal_id).delete(synchronize_session=False)
+    document_ids = [d.id for d in db.query(Document.id).filter(Document.deal_id == deal_id).all()]
+    if document_ids:
+        db.query(DocumentView).filter(DocumentView.document_id.in_(document_ids)).delete(synchronize_session=False)
+    db.query(Document).filter(Document.deal_id == deal_id).delete(synchronize_session=False)
+    db.query(DealNote).filter(DealNote.deal_id == deal_id).delete(synchronize_session=False)
+    db.query(DealAttachment).filter(DealAttachment.deal_id == deal_id).delete(synchronize_session=False)
+    calculation_ids = [c.id for c in db.query(Calculation.id).filter(Calculation.deal_id == deal_id).all()]
+    if calculation_ids:
+        db.query(CalculationItem).filter(CalculationItem.calculation_id.in_(calculation_ids)).delete(
+            synchronize_session=False
+        )
+    db.query(Calculation).filter(Calculation.deal_id == deal_id).delete(synchronize_session=False)
+
     db.delete(deal)
     db.commit()
 
