@@ -661,12 +661,12 @@ export default function DashboardPage() {
 
       {!loading && (() => {
         const today = new Date().toISOString().slice(0, 10);
-        const weekAhead = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const threeDaysAhead = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         const followupDeals = deals
           .filter(
             (d) =>
               d.next_contact_date &&
-              d.next_contact_date <= weekAhead &&
+              d.next_contact_date <= threeDaysAhead &&
               d.status !== "Ztraceno" &&
               d.status !== "Fakturováno"
           )
@@ -675,56 +675,63 @@ export default function DashboardPage() {
         if (followupDeals.length === 0) return null;
 
         return (
-          <div className="card" style={{ marginBottom: 16, flexShrink: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 10 }}>
-              Blíží se follow-up ({followupDeals.length})
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="card" style={{ marginBottom: 12, flexShrink: 0, padding: "8px 12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 600, fontSize: 12.5, color: "var(--ink-600)", flexShrink: 0 }}>
+                Blíží se follow-up:
+              </span>
               {followupDeals.map((d) => {
                 const isOverdue = d.next_contact_date < today;
                 return (
                   <div
                     key={d.id}
                     onClick={() => router.push(`/deals/${d.id}`)}
+                    title={companies[d.company_id] ? `${d.name} · ${companies[d.company_id]}` : d.name}
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
+                      display: "inline-flex",
                       alignItems: "center",
-                      padding: "6px 10px",
+                      gap: 5,
+                      padding: "3px 4px 3px 10px",
                       background: isOverdue ? "#fdf0ef" : "var(--paper-50)",
-                      borderRadius: 6,
+                      borderRadius: 999,
                       cursor: "pointer",
-                      fontSize: 13,
+                      fontSize: 12,
+                      maxWidth: 220,
                     }}
                   >
-                    <span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       <strong>{d.name}</strong>
-                      {companies[d.company_id] && <span style={{ color: "var(--ink-600)" }}> · {companies[d.company_id]}</span>}
                     </span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ color: isOverdue ? "var(--danger, #a13d3d)" : "var(--ink-600)", fontWeight: isOverdue ? 700 : 400 }}>
-                        {formatDateShort(d.next_contact_date)}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCompleteFollowup(d.id);
-                        }}
-                        title="Označit follow-up jako hotový"
-                        style={{
-                          background: "none",
-                          border: "1px solid var(--paper-200)",
-                          borderRadius: 6,
-                          padding: "3px 8px",
-                          fontSize: 11.5,
-                          cursor: "pointer",
-                          color: "var(--ink-600)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        ✓ Hotovo
-                      </button>
+                    <span
+                      style={{
+                        color: isOverdue ? "var(--danger, #a13d3d)" : "var(--ink-600)",
+                        fontWeight: isOverdue ? 700 : 400,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {formatDateShort(d.next_contact_date)}
                     </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCompleteFollowup(d.id);
+                      }}
+                      title="Označit follow-up jako hotový"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: 18,
+                        height: 18,
+                        flexShrink: 0,
+                        cursor: "pointer",
+                        color: "var(--ink-500)",
+                        fontSize: 11,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✓
+                    </button>
                   </div>
                 );
               })}
