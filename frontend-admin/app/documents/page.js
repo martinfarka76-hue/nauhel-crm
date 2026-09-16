@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
+import { normalizeForSearch } from "@/lib/search";
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
 const DOCUMENT_TYPES = ["Nabídka", "Objednávka", "Zálohová faktura", "Dodací list", "Finální faktura"];
@@ -113,12 +114,12 @@ export default function DocumentsPage() {
 
   const filteredDocuments = documents.filter((doc) => {
     if (!searchQuery.trim()) return true;
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeForSearch(searchQuery.trim());
     const deal = deals[doc.deal_id];
     const company = companyForDeal(doc.deal_id);
     return (
-      (company ? company.name.toLowerCase().includes(q) : false) ||
-      (deal ? deal.name.toLowerCase().includes(q) : false)
+      (company ? normalizeForSearch(company.name).includes(q) : false) ||
+      (deal ? normalizeForSearch(deal.name).includes(q) : false)
     );
   });
 

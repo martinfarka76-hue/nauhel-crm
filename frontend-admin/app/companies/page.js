@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
+import { normalizeForSearch } from "@/lib/search";
 
 function getDomain(url) {
   if (!url) return null;
@@ -235,11 +236,11 @@ export default function CompaniesPage() {
             {companies
               .filter((c) => {
                 if (!searchQuery.trim()) return true;
-                const q = searchQuery.trim().toLowerCase();
+                const q = normalizeForSearch(searchQuery.trim());
                 return (
-                  c.name.toLowerCase().includes(q) ||
-                  (c.ico || "").toLowerCase().includes(q) ||
-                  (c.address || "").toLowerCase().includes(q)
+                  normalizeForSearch(c.name).includes(q) ||
+                  normalizeForSearch(c.ico).includes(q) ||
+                  normalizeForSearch(c.address).includes(q)
                 );
               })
               .map((c) => (

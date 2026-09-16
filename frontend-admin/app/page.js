@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
+import { normalizeForSearch } from "@/lib/search";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
 import { DEAL_STATUSES, STATUS_COLORS } from "@/lib/constants";
@@ -255,9 +256,9 @@ export default function DashboardPage() {
       if (invoiceDateTo && deal.expected_invoice_date > invoiceDateTo) return false;
     }
     if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      const companyName = (companies[deal.company_id] || "").toLowerCase();
-      if (!deal.name.toLowerCase().includes(q) && !companyName.includes(q)) return false;
+      const q = normalizeForSearch(searchQuery.trim());
+      const companyName = normalizeForSearch(companies[deal.company_id]);
+      if (!normalizeForSearch(deal.name).includes(q) && !companyName.includes(q)) return false;
     }
     if (ownerFilter && deal.owner_user_id !== ownerFilter) return false;
     return true;
