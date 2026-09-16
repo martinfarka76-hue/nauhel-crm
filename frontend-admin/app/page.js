@@ -676,7 +676,16 @@ export default function DashboardPage() {
         if (followupDeals.length === 0) return null;
 
         return (
-          <div className="card" style={{ marginBottom: 12, flexShrink: 0, padding: "8px 12px" }}>
+          <div
+            className="card"
+            style={{
+              marginBottom: 12,
+              flexShrink: 0,
+              padding: "8px 12px",
+              background: "#fdf3ec",
+              borderColor: "var(--ember-500)",
+            }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontWeight: 600, fontSize: 12.5, color: "var(--ink-600)", flexShrink: 0 }}>
                 Blíží se follow-up:
@@ -697,7 +706,7 @@ export default function DashboardPage() {
                       borderRadius: 999,
                       cursor: "pointer",
                       fontSize: 12,
-                      maxWidth: 220,
+                      maxWidth: 320,
                     }}
                   >
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
