@@ -371,10 +371,10 @@ export default function DashboardPage() {
           alignItems: "center",
           flexWrap: "wrap",
           rowGap: 10,
-          marginBottom: 16,
+          marginBottom: 10,
         }}
       >
-        <h1 className="page-title" style={{ margin: 0 }}>
+        <h1 className="page-title" style={{ margin: 0, fontSize: 18 }}>
           Přehled obchodních případů
         </h1>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -523,7 +523,7 @@ export default function DashboardPage() {
       )}
 
       <div style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div style={{ position: "relative" }}>
             <svg
               width="14"
@@ -570,9 +570,6 @@ export default function DashboardPage() {
               Export do Excelu (CSV)
             </button>
           )}
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <FilterChip label="Vlastník">
             <select
               value={ownerFilter}
