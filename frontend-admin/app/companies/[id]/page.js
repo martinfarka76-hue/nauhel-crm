@@ -56,6 +56,7 @@ export default function CompanyDetailPage() {
   const [newContactForm, setNewContactForm] = useState(emptyContactForm);
   const [editingContactId, setEditingContactId] = useState(null);
   const [editContactForm, setEditContactForm] = useState(emptyContactForm);
+  const [contactDupMatches, setContactDupMatches] = useState([]);
 
   function loadAll() {
     Promise.all([
@@ -76,6 +77,21 @@ export default function CompanyDetailPage() {
   }
 
   useEffect(loadAll, [id]);
+
+  useEffect(() => {
+    if (!showContactForm || !newContactForm.email.trim()) {
+      setContactDupMatches([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ email: newContactForm.email.trim() });
+      api
+        .get(`/contacts/check-duplicate?${params.toString()}`)
+        .then((matches) => setContactDupMatches(matches))
+        .catch(() => setContactDupMatches([]));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [newContactForm.email, showContactForm]);
 
   function handleCopyLink(accessToken, docId) {
     const url = `${PUBLIC_URL}/n/${accessToken}`;
@@ -244,6 +260,7 @@ export default function CompanyDetailPage() {
     try {
       await api.post("/contacts", { company_id: id, ...newContactForm });
       setNewContactForm(emptyContactForm);
+      setContactDupMatches([]);
       setShowContactForm(false);
       loadAll();
     } catch (err) {
@@ -496,6 +513,27 @@ export default function CompanyDetailPage() {
                   onChange={(e) => setNewContactForm({ ...newContactForm, email: e.target.value })}
                 />
               </div>
+              {contactDupMatches.length > 0 && (
+                <div
+                  style={{
+                    background: "#fdf3ec",
+                    border: "1px solid var(--ember-500)",
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    marginBottom: 8,
+                    fontSize: 12,
+                  }}
+                >
+                  <strong>⚠️ Možná duplicita</strong> - kontakt s tímto e-mailem už existuje:
+                  <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
+                    {contactDupMatches.map((m) => (
+                      <li key={m.id}>
+                        {m.first_name} {m.last_name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="field" style={{ marginBottom: 8 }}>
                 <label>Telefon</label>
                 <input

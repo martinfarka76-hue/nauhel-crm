@@ -357,6 +357,15 @@ export default function ReportsPage() {
   const wonCount = filteredDeals.filter((d) => d.status === "Fakturováno").length;
   const lostCount = filteredDeals.filter((d) => d.status === "Ztraceno").length;
   const winRateOverall = wonCount + lostCount > 0 ? (wonCount / (wonCount + lostCount)) * 100 : null;
+  const currentYear = new Date().getFullYear();
+  const invoicedThisYear = filteredDeals
+    .filter(
+      (d) =>
+        d.status === "Fakturováno" &&
+        d.expected_invoice_date &&
+        new Date(d.expected_invoice_date).getFullYear() === currentYear
+    )
+    .reduce((sum, d) => sum + (Number(d.price) || 0), 0);
 
   const charts = {
     new_deals: {
@@ -479,6 +488,7 @@ export default function ReportsPage() {
           value={winRateOverall !== null ? `${Math.round(winRateOverall)} %` : "—"}
           color={winRateOverall !== null ? "var(--success)" : undefined}
         />
+        <KpiCard label={`Fakturováno ${currentYear}`} value={formatKc(invoicedThisYear) || "0 Kč"} color="var(--success)" />
       </div>
 
       <div style={{ fontSize: 11.5, color: "var(--ink-400)", marginBottom: 16 }}>

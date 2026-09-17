@@ -1,4 +1,6 @@
+import re
 import uuid
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -11,9 +13,53 @@ from app.schemas.company import CompanyCreate, CompanyUpdate, CompanyOut
 router = APIRouter(prefix="/companies", tags=["companies"])
 
 
+def _normalize_name(name: str) -> str:
+    n = name.lower()
+    n = re.sub(r"[.,]", "", n)
+    n = re.sub(r"\s+", "", n)
+    for suffix in ["sro", "spolsro", "as"]:
+        if n.endswith(suffix):
+            n = n[: -len(suffix)]
+            break
+    return n
+
+
 @router.get("", response_model=list[CompanyOut])
 def list_companies(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Company).order_by(Company.created_at.desc()).all()
+
+
+@router.get("/check-duplicate", response_model=list[CompanyOut])
+def check_duplicate_company(
+    name: Optional[str] = None,
+    ico: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Vrátí firmy, které vypadají jako možná duplicita zadaného názvu/IČO -
+    jen pro zobrazení varování ve formuláři, nic neblokuje. Shoda podle IČO
+    je jistá (přesná shoda). Shoda podle názvu je přibližná (bez velikosti
+    písmen, mezer, teček a běžných právních přípon jako "s.r.o.").
+    """
+    if not name and not ico:
+        return []
+
+    matches = []
+    if ico:
+        matches.extend(db.query(Company).filter(Company.ico == ico).all())
+
+    if name:
+        target = _normalize_name(name)
+        if target:
+            candidates = db.query(Company).all()
+            for c in candidates:
+                if c in matches:
+                    continue
+                if _normalize_name(c.name) == target:
+                    matches.append(c)
+
+    return matches[:5]
 
 
 @router.post("", response_model=CompanyOut, status_code=201)

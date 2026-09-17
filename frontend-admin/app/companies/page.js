@@ -72,6 +72,7 @@ export default function CompaniesPage() {
   const [saving, setSaving] = useState(false);
   const [aresLoading, setAresLoading] = useState(false);
   const [aresError, setAresError] = useState("");
+  const [dupMatches, setDupMatches] = useState([]);
 
   function loadCompanies() {
     setLoading(true);
@@ -84,6 +85,25 @@ export default function CompaniesPage() {
 
   useEffect(loadCompanies, []);
 
+  // Kontrola možné duplicity - jen upozornění, nic neblokuje. Debounce 400ms,
+  // ať se nedotazuje na každé písmeno.
+  useEffect(() => {
+    if (!showForm || (!form.name.trim() && !form.ico.trim())) {
+      setDupMatches([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (form.name.trim()) params.set("name", form.name.trim());
+      if (form.ico.trim()) params.set("ico", form.ico.trim());
+      api
+        .get(`/companies/check-duplicate?${params.toString()}`)
+        .then((matches) => setDupMatches(matches))
+        .catch(() => setDupMatches([]));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [form.name, form.ico, showForm]);
+
   async function handleCreate(e) {
     e.preventDefault();
     setSaving(true);
@@ -91,6 +111,7 @@ export default function CompaniesPage() {
     try {
       await api.post("/companies", form);
       setForm({ name: "", ico: "", dic: "", website: "", address: "" });
+      setDupMatches([]);
       setShowForm(false);
       loadCompanies();
     } catch (err) {
@@ -172,6 +193,37 @@ export default function CompaniesPage() {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
+            {dupMatches.length > 0 && (
+              <div
+                style={{
+                  background: "#fdf3ec",
+                  border: "1px solid var(--ember-500)",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  marginBottom: 14,
+                  fontSize: 12.5,
+                }}
+              >
+                <strong>⚠️ Možná duplicita</strong> - podobná firma už v CRM je:
+                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                  {dupMatches.map((m) => (
+                    <li key={m.id}>
+                      <a
+                        href={`/companies/${m.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--ember-600)", textDecoration: "underline" }}
+                      >
+                        {m.name} {m.ico ? `(IČO ${m.ico})` : ""}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ marginTop: 4, color: "var(--ink-600)" }}>
+                  Pokud jde skutečně o jinou firmu, klidně pokračuj v ukládání.
+                </div>
+              </div>
+            )}
             <div className="field">
               <label>DIČ</label>
               <input

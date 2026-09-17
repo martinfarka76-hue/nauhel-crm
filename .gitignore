@@ -15,3 +15,5 @@ data/attachments/
 data/delivery_notes/
 backend/data/delivery_notes/
 data/avatars/
+final_backup.sql
+data/mcp-server/oauth_state.json

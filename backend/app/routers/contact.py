@@ -24,6 +24,24 @@ def list_contacts(
     return query.order_by(Contact.created_at.desc()).all()
 
 
+@router.get("/check-duplicate", response_model=list[ContactOut])
+def check_duplicate_contact(
+    email: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Vrátí kontakty se stejným e-mailem (bez ohledu na velikost písmen) -
+    jen pro zobrazení varování ve formuláři, nic neblokuje.
+    """
+    if not email or not email.strip():
+        return []
+    target = email.strip().lower()
+    return db.query(Contact).filter(Contact.email.isnot(None)).filter(
+        Contact.email.ilike(target)
+    ).limit(5).all()
+
+
 @router.post("", response_model=ContactOut, status_code=201)
 def create_contact(
     payload: ContactCreate,
