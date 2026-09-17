@@ -850,7 +850,18 @@ export default function DashboardPage() {
                     );
                   })}
                   {statusDeals.length === 0 && (
-                    <div style={{ fontSize: 12, color: "var(--ink-400)", padding: "8px 2px" }}>Žádné případy</div>
+                    <div
+                      style={{
+                        border: "1px dashed var(--paper-200)",
+                        borderRadius: 10,
+                        padding: "24px 12px",
+                        textAlign: "center",
+                        fontSize: 12,
+                        color: "var(--ink-400)",
+                      }}
+                    >
+                      Žádné případy
+                    </div>
                   )}
                 </div>
                 {statusDeals.length > 0 && (
