@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ProtectedShell from "@/components/ProtectedShell";
 import { api } from "@/lib/api";
-import { STATUS_COLORS, NEXT_MANUAL_STATUS } from "@/lib/constants";
+import { STATUS_COLORS, NEXT_MANUAL_STATUS, getBadgeTextColor } from "@/lib/constants";
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || "http://localhost:18082";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
@@ -1121,7 +1121,14 @@ export default function DealDetailPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span className="badge" style={{ background: STATUS_COLORS[deal.status], fontSize: 13 }}>
+          <span
+            className="badge"
+            style={{
+              background: STATUS_COLORS[deal.status],
+              color: getBadgeTextColor(STATUS_COLORS[deal.status]),
+              fontSize: 13,
+            }}
+          >
             {deal.status}
           </span>
           {!editingDeal && (

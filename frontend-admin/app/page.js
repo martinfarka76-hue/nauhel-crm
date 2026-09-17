@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { normalizeForSearch } from "@/lib/search";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
-import { DEAL_STATUSES, STATUS_COLORS } from "@/lib/constants";
+import { DEAL_STATUSES, STATUS_COLORS, getBadgeTextColor } from "@/lib/constants";
 
 const PAGE_SIZE = 50;
 
@@ -893,7 +893,13 @@ export default function DashboardPage() {
                       <td style={{ fontWeight: 600 }}>{deal.name}</td>
                       <td>{companies[deal.company_id] || "—"}</td>
                       <td>
-                        <span className="badge" style={{ background: STATUS_COLORS[deal.status] }}>
+                        <span
+                          className="badge"
+                          style={{
+                            background: STATUS_COLORS[deal.status],
+                            color: getBadgeTextColor(STATUS_COLORS[deal.status]),
+                          }}
+                        >
                           {deal.status}
                         </span>
                       </td>
