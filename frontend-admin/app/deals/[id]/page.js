@@ -1121,6 +1121,23 @@ export default function DealDetailPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {deal.skip_customer_emails && (
+            <span
+              className="badge"
+              title="E-maily s nabídkou/objednávkou se u tohoto případu neposílají automaticky - vyplňuje se ručně do formuláře zákazníka."
+              style={{
+                background: "#fdf3ec",
+                border: "1px solid var(--ember-500)",
+                color: "var(--ember-600)",
+                fontSize: 12,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              🚫✉️ Ruční formulář
+            </span>
+          )}
           <span
             className="badge"
             style={{

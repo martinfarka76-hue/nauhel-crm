@@ -514,6 +514,17 @@ export default function DashboardPage() {
                   onChange={(e) => setNewDealForm({ ...newDealForm, expected_invoice_date: e.target.value })}
                 />
               </div>
+              <div className="field">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={newDealForm.skip_customer_emails}
+                    onChange={(e) => setNewDealForm({ ...newDealForm, skip_customer_emails: e.target.checked })}
+                    style={{ marginRight: 6 }}
+                  />
+                  Nezasílat nabídku/objednávku e-mailem (vyplňuji ručně do formuláře zákazníka)
+                </label>
+              </div>
             </div>
             <button className="btn btn-primary" type="submit" disabled={savingNewDeal}>
               {savingNewDeal ? "Vytvářím…" : "Vytvořit případ"}
@@ -550,6 +561,8 @@ export default function DashboardPage() {
                 borderRadius: 8,
                 border: "1px solid var(--paper-200)",
                 width: 260,
+                height: 34,
+                boxSizing: "border-box",
               }}
             />
           </div>
@@ -574,7 +587,7 @@ export default function DashboardPage() {
             <select
               value={ownerFilter}
               onChange={(e) => setOwnerFilter(e.target.value)}
-              style={{ border: "none", fontSize: 12.5, color: "var(--ink-900)", background: "transparent" }}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-900)", background: "transparent", height: 20 }}
             >
               <option value="">Všichni</option>
               {users.map((u) => (
@@ -593,7 +606,7 @@ export default function DashboardPage() {
                 setDateFrom(e.target.value);
                 setPage(1);
               }}
-              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent" }}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent", height: 20 }}
             />
             <span style={{ color: "var(--ink-400)" }}>–</span>
             <input
@@ -603,7 +616,7 @@ export default function DashboardPage() {
                 setDateTo(e.target.value);
                 setPage(1);
               }}
-              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent" }}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent", height: 20 }}
             />
           </FilterChip>
 
@@ -615,7 +628,7 @@ export default function DashboardPage() {
                 setInvoiceDateFrom(e.target.value);
                 setPage(1);
               }}
-              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent" }}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent", height: 20 }}
             />
             <span style={{ color: "var(--ink-400)" }}>–</span>
             <input
@@ -625,7 +638,7 @@ export default function DashboardPage() {
                 setInvoiceDateTo(e.target.value);
                 setPage(1);
               }}
-              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent" }}
+              style={{ border: "none", fontSize: 12.5, color: "var(--ink-600)", background: "transparent", height: 20 }}
             />
           </FilterChip>
 
