@@ -48,6 +48,25 @@ function SidebarUserAvatar({ user }) {
   );
 }
 
+function MenuIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 function BellIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -145,6 +164,7 @@ export default function ProtectedShell({ children }) {
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
@@ -250,7 +270,13 @@ export default function ProtectedShell({ children }) {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar" style={{ position: "relative" }}>
+      <div className="mobile-topbar">
+        <NauhelLogo height={14} />
+        <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Menu">
+          {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+        </button>
+      </div>
+      <aside className={`sidebar ${mobileMenuOpen ? "mobile-open" : ""}`} style={{ position: "relative" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 4 }}>
           <Link href="/" className="sidebar-brand" style={{ marginBottom: 0, flexShrink: 0, display: "block" }}>
             <NauhelLogo height={14} />
@@ -409,6 +435,7 @@ export default function ProtectedShell({ children }) {
           <Link
             key={link.href}
             href={link.href}
+            onClick={() => setMobileMenuOpen(false)}
             className={`sidebar-link ${pathname === link.href ? "active" : ""}`}
             style={{ display: "flex", alignItems: "center", gap: 10 }}
           >

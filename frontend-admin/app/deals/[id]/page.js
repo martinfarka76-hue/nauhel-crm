@@ -491,6 +491,28 @@ export default function DealDetailPage() {
     }
   }
 
+  async function handleManualConfirmOrder() {
+    if (!latestObjednavka) return;
+    const confirmedByName = window.prompt(
+      "Kdo objednávku potvrdil? (celé jméno zákazníka, pro záznam)"
+    );
+    if (!confirmedByName || !confirmedByName.trim()) return;
+
+    setTransitioning(true);
+    setError("");
+    try {
+      await api.post(`/documents/${latestObjednavka.id}/manual-confirm`, {
+        confirmed_by_name: confirmedByName.trim(),
+        agreed_to_terms: true,
+      });
+      loadAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setTransitioning(false);
+    }
+  }
+
   async function handleCreateCalculation(e) {
     e.preventDefault();
     setCalcSaving(true);
@@ -916,9 +938,11 @@ export default function DealDetailPage() {
           title: "Čeká se na elektronické potvrzení objednávky",
           description: deal.skip_customer_emails
             ? "E-mail se u tohoto případu neposílá (ruční vyplňování do formuláře zákazníka) - jakmile " +
-              "zákazník objednávku potvrdí (mimo systém), přesuň případ ručně dál."
+              "zákazník objednávku potvrdí (mimo systém), potvrď to tlačítkem níže."
             : "Zákazník dostal e-mail s odkazem na potvrzení objednávky. Jakmile ji potvrdí, automaticky " +
               "vznikne zálohová faktura a případ se posune dál.",
+          actionLabel: deal.skip_customer_emails ? "Ručně potvrdit objednávku" : undefined,
+          action: deal.skip_customer_emails ? handleManualConfirmOrder : undefined,
         };
       }
       return {
@@ -1118,26 +1142,17 @@ export default function DealDetailPage() {
                 </a>
               </span>
             )}
+            {deal.skip_customer_emails && (
+              <span
+                title="E-maily s nabídkou/objednávkou se u tohoto případu neposílají automaticky - vyplňuje se ručně do formuláře zákazníka."
+                style={{ fontSize: 12, color: "var(--ink-400)" }}
+              >
+                🚫✉️ ruční formulář
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {deal.skip_customer_emails && (
-            <span
-              className="badge"
-              title="E-maily s nabídkou/objednávkou se u tohoto případu neposílají automaticky - vyplňuje se ručně do formuláře zákazníka."
-              style={{
-                background: "#fdf3ec",
-                border: "1px solid var(--ember-500)",
-                color: "var(--ember-600)",
-                fontSize: 12,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              🚫✉️ Ruční formulář
-            </span>
-          )}
           <span
             className="badge"
             style={{

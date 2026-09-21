@@ -670,7 +670,7 @@ export default function DashboardPage() {
       {error && <div className="error-banner">{error}</div>}
       {loading && <div className="empty-state">Načítám…</div>}
 
-      {!loading && (() => {
+      {!loading && viewMode !== "kanban" && (() => {
         const today = new Date().toISOString().slice(0, 10);
         const threeDaysAhead = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         const followupDeals = deals
