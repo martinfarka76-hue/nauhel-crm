@@ -24,5 +24,10 @@ class CalculationItem(Base):
     quantity = Column(Numeric(12, 3), nullable=False, default=0)
     unit_price = Column(Numeric(12, 2), nullable=False, default=0)
     display_order = Column(Integer, nullable=False, default=0)
+    # Pokud polozka vznikla z "Predvyplnit z drevin", ulozi se sem ID te
+    # dreviny - umoznuje pozdejsi "Prepocitat podle aktualni produktove
+    # rady" bez nutnosti hadat, z ceho polozka vznikla. Rucne pridane
+    # polozky (a polozky z cenikuu partnera) toto pole nemaji.
+    wood_species_id = Column(UUID(as_uuid=True), ForeignKey("wood_species.id"), nullable=True)
 
     calculation = relationship("Calculation", back_populates="items")

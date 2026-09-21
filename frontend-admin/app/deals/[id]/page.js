@@ -65,7 +65,7 @@ function money(value) {
   return Number(value).toLocaleString("cs-CZ") + " Kč";
 }
 
-const emptyItemForm = { category: "Materiál", name: "", unit: "", quantity: "", unit_price: "", item_area_m2: "" };
+const emptyItemForm = { category: "Materiál", name: "", unit: "", quantity: "", unit_price: "", item_area_m2: "", wood_species_id: "" };
 const DEFAULT_WOOD_SPECIES_NAME = 'Modřín Evropský "Z" 20x145, délka 4000mm';
 
 export default function DealDetailPage() {
@@ -570,29 +570,14 @@ export default function DealDetailPage() {
     return `surcharge_${slug}_per_m2`;
   }
 
-  function handleApplyWoodSpecies(calcId, speciesId, productLine, areaM2) {
-    const species = woodSpeciesList.find((s) => s.id === speciesId);
-    if (!species) return;
-
-    // Krycí plocha (co chce zákazník) vs. skutečné množství materiálu (co musíme
-    // nakoupit) - u profilů s perem/drážkou je efektivní krycí šířka menší než
-    // šířka prkna, takže je potřeba víc materiálu, než kolik reálně pokryje fasádu.
-    const widthMm = Number(species.width_mm) || 0;
-    const widthEffMm = Number(species.width_effective_mm) || 0;
-    const facadeArea = areaM2 ? Number(areaM2) : Number(getItemForm(calcId).quantity) || 0;
-
-    let materialQuantity = facadeArea;
-    let itemName = species.name;
-    if (widthMm > 0 && widthEffMm > 0 && widthEffMm < widthMm && facadeArea > 0) {
-      materialQuantity = Math.round(facadeArea * (widthMm / widthEffMm) * 100) / 100;
-      itemName = `${species.name} (Krycí plocha fasády: ${facadeArea} m² → potřebné množství materiálu: ${materialQuantity} m²)`;
-    }
-
-    // Cena za m² - přesně podle listu "Kalkulace" ve zdrojovém Excelu: materiál
-    // a výroba se počítají ODDĚLENĚ, každé se svou marží, a marže výroby se liší
-    // podle produktové řady (Atacama = plná marže, Mirage/Ocaso = poloviční).
-    // K materiálu se navíc připočítává fixní náklad "doprava - nákup dřeva"
-    // (jednou za zakázku, ne za m²), teprve pak se na součet aplikuje marže.
+  // Cena za m² - přesně podle listu "Kalkulace" ve zdrojovém Excelu: materiál
+  // a výroba se počítají ODDĚLENĚ, každé se svou marží, a marže výroby se liší
+  // podle produktové řady (Atacama = plná marže, Mirage/Ocaso = poloviční).
+  // K materiálu se navíc připočítává fixní náklad "doprava - nákup dřeva"
+  // (jednou za zakázku, ne za m²), teprve pak se na součet aplikuje marže.
+  // Sdílené jak pro předvyplnění nové položky, tak pro pozdější přepočet
+  // podle jiné produktové řady/dřeviny.
+  function computeUnitPriceForSpecies(species, productLine, materialQuantity) {
     const marginMaterial = pricingParams.margin_material ?? 0;
     const marginVyroba = pricingParams.margin_vyroba ?? 0;
     const productionMarginEffective = productLine === "Atacama" ? marginVyroba : marginVyroba * 0.5;
@@ -612,7 +597,28 @@ export default function DealDetailPage() {
     const materialSMarzi = materialZaklad * (1 + marginMaterial);
 
     const cenaCelkem = materialSMarzi + vyrobaSMarzi;
-    const suggestedPrice = materialQuantity > 0 ? Math.round((cenaCelkem / materialQuantity) * 100) / 100 : 0;
+    return materialQuantity > 0 ? Math.round((cenaCelkem / materialQuantity) * 100) / 100 : 0;
+  }
+
+  function handleApplyWoodSpecies(calcId, speciesId, productLine, areaM2) {
+    const species = woodSpeciesList.find((s) => s.id === speciesId);
+    if (!species) return;
+
+    // Krycí plocha (co chce zákazník) vs. skutečné množství materiálu (co musíme
+    // nakoupit) - u profilů s perem/drážkou je efektivní krycí šířka menší než
+    // šířka prkna, takže je potřeba víc materiálu, než kolik reálně pokryje fasádu.
+    const widthMm = Number(species.width_mm) || 0;
+    const widthEffMm = Number(species.width_effective_mm) || 0;
+    const facadeArea = areaM2 ? Number(areaM2) : Number(getItemForm(calcId).quantity) || 0;
+
+    let materialQuantity = facadeArea;
+    let itemName = species.name;
+    if (widthMm > 0 && widthEffMm > 0 && widthEffMm < widthMm && facadeArea > 0) {
+      materialQuantity = Math.round(facadeArea * (widthMm / widthEffMm) * 100) / 100;
+      itemName = `${species.name} (Krycí plocha fasády: ${facadeArea} m² → potřebné množství materiálu: ${materialQuantity} m²)`;
+    }
+
+    const suggestedPrice = computeUnitPriceForSpecies(species, productLine, materialQuantity);
 
     setItemForm(calcId, {
       category: "Materiál",
@@ -620,7 +626,45 @@ export default function DealDetailPage() {
       unit: "m²",
       quantity: areaM2 ? String(materialQuantity) : getItemForm(calcId).quantity,
       unit_price: String(suggestedPrice),
+      wood_species_id: speciesId,
     });
+  }
+
+  async function handleRecomputeItems(calcId) {
+    const calc = calculations.find((c) => c.id === calcId);
+    const items = calcItems[calcId] || [];
+    const toUpdate = items.filter((item) => item.wood_species_id);
+    if (toUpdate.length === 0) {
+      alert(
+        "Žádná položka v této kalkulaci nemá uloženou dřevinu k přepočtu (byla přidána ručně, nebo z ceníku partnera)."
+      );
+      return;
+    }
+    if (
+      !window.confirm(
+        `Přepočítat cenu u ${toUpdate.length} položek podle aktuální produktové řady ` +
+          `("${calc.product_line || "—"}")? Množství zůstane stejné, přepočítá se jen cena za jednotku.`
+      )
+    )
+      return;
+
+    setError("");
+    try {
+      let lastUpdatedCalc = null;
+      for (const item of toUpdate) {
+        const species = woodSpeciesList.find((s) => s.id === item.wood_species_id);
+        if (!species) continue;
+        const newPrice = computeUnitPriceForSpecies(species, calc.product_line, Number(item.quantity));
+        lastUpdatedCalc = await api.put(`/calculation-items/${item.id}`, { unit_price: newPrice });
+      }
+      if (lastUpdatedCalc) {
+        setCalculations((prev) => prev.map((c) => (c.id === calcId ? lastUpdatedCalc : c)));
+      }
+      const newItems = await api.get(`/calculations/${calcId}/items`);
+      setCalcItems((prev) => ({ ...prev, [calcId]: newItems }));
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   function handleApplyPartnerPrice(calcId, itemId, areaM2) {
@@ -739,6 +783,7 @@ export default function DealDetailPage() {
         quantity: Number(form.quantity),
         unit_price: Number(form.unit_price),
         display_order: (calcItems[calcId] || []).length,
+        wood_species_id: form.wood_species_id || null,
       });
       setCalculations((prev) => prev.map((c) => (c.id === calcId ? updatedCalc : c)));
       const items = await api.get(`/calculations/${calcId}/items`);
@@ -1831,8 +1876,19 @@ export default function DealDetailPage() {
 
                     {items.length > 0 && (
                       <>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-600)", marginBottom: 6 }}>
-                        Položky kalkulace
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-600)" }}>
+                          Položky kalkulace
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ padding: "3px 8px", fontSize: 11.5 }}
+                          onClick={() => handleRecomputeItems(c.id)}
+                          title="Přepočítá cenu u položek vytvořených přes 'Předvyplnit z dřeviny' podle aktuální produktové řady v hlavičce - množství zůstane stejné."
+                        >
+                          🔄 Přepočítat podle produktové řady
+                        </button>
                       </div>
                       <table className="table" style={{ marginBottom: 10 }}>
                         <thead>

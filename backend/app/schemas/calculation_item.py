@@ -13,6 +13,7 @@ class CalculationItemCreate(BaseModel):
     quantity: Decimal
     unit_price: Decimal
     display_order: int = 0
+    wood_species_id: Optional[uuid.UUID] = None
 
 
 class CalculationItemUpdate(BaseModel):
@@ -22,6 +23,7 @@ class CalculationItemUpdate(BaseModel):
     quantity: Optional[Decimal] = None
     unit_price: Optional[Decimal] = None
     display_order: Optional[int] = None
+    wood_species_id: Optional[uuid.UUID] = None
 
 
 class CalculationItemOut(BaseModel):
@@ -35,3 +37,4 @@ class CalculationItemOut(BaseModel):
     quantity: Decimal
     unit_price: Decimal
     display_order: int
+    wood_species_id: Optional[uuid.UUID] = None
