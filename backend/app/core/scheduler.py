@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta, date
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
@@ -27,9 +28,11 @@ def check_upcoming_followups() -> None:
     """
     Denní kontrola termínů dalšího kontaktu (next_contact_date) u Dealů.
     Upozornění se vytvoří už DEN PŘED termínem, ať má obchodník čas se
-    připravit - a pak dál, dokud termín trvá/je po termínu. Deal nesmí být
-    v koncovém stavu (Fakturováno/Ztraceno) a notifikace pro tenhle termín
-    ještě nesmí být vytvořena (next_contact_notified_at je NULL).
+    připravit - a pak OPAKOVANĚ KAŽDÝ DEN, dokud termín zůstává po
+    splatnosti a nikdo nezmáčkl "Hotovo" (next_contact_date se nezměnil).
+    Deal nesmí být v koncovém stavu (Fakturováno/Ztraceno). Notifikace se
+    pro daný den vytvoří jen jednou (next_contact_notified_at hlídá "dnes
+    už bylo").
     """
     db: Session = SessionLocal()
     try:
@@ -39,7 +42,10 @@ def check_upcoming_followups() -> None:
             .filter(
                 Deal.next_contact_date.isnot(None),
                 Deal.next_contact_date <= today + timedelta(days=1),
-                Deal.next_contact_notified_at.is_(None),
+                or_(
+                    Deal.next_contact_notified_at.is_(None),
+                    func.date(Deal.next_contact_notified_at) < today,
+                ),
                 Deal.status.notin_(TERMINAL_STATUSES),
             )
             .all()

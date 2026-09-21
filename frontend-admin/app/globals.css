@@ -582,4 +582,8 @@ textarea {
   .page-title {
     font-size: 19px;
   }
+
+  .followup-banner {
+    display: none;
+  }
 }
