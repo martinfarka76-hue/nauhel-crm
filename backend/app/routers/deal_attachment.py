@@ -67,7 +67,7 @@ async def upload_deal_attachment(
     db.commit()
     db.refresh(attachment)
 
-    sync_attachment_to_sharepoint(db, deal, original_name, content)
+    sync_attachment_to_sharepoint(db, deal, attachment, content)
 
     return attachment
 

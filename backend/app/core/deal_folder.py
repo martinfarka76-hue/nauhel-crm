@@ -14,6 +14,7 @@ from app.core.folder_sequence import peek_next_folder_number, confirm_folder_num
 from app.core.offer_pdf import generate_offer_pdf
 from app.core.delivery_note_pdf import generate_delivery_note_pdf
 from app.models.deal import Deal
+from app.models.deal_attachment import DealAttachment
 from app.models.document import Document
 from app.models.company import Company
 from app.models.contact import Contact
@@ -24,6 +25,8 @@ from app.models.notification import Notification
 from app.models.enums import DocumentType
 
 logger = logging.getLogger("nauhel_crm.deal_folder")
+
+ATTACHMENT_STORAGE_DIR = Path("/app/data/attachments")
 
 DELIVERY_NOTE_STORAGE_DIR = Path("/app/data/delivery_notes")
 
@@ -92,6 +95,8 @@ def create_sharepoint_folder_for_deal(db: Session, deal: Deal) -> None:
     db.add(notification)
     db.commit()
 
+    sync_pending_attachments_for_deal(db, deal)
+
 
 def sync_offer_pdf_to_sharepoint(db: Session, document: Document, deal: Deal) -> None:
     """Vygeneruje PDF Nabídky/Objednávky a nahraje ho do podsložky 02_Nabídka."""
@@ -152,14 +157,22 @@ def sync_invoice_pdf_to_sharepoint(db: Session, deal: Deal, document: Document, 
         db.commit()
 
 
-def sync_attachment_to_sharepoint(db: Session, deal: Deal, filename: str, content_bytes: bytes) -> None:
-    """Nahraje přílohu k poptávce (výkres, dokumentace) do podsložky 01_Poptávka."""
+def sync_attachment_to_sharepoint(db: Session, deal: Deal, attachment: "DealAttachment", content_bytes: bytes) -> None:
+    """
+    Nahraje přílohu k poptávce (výkres, dokumentace) do podsložky
+    01_Poptávka a označí ji jako synchronizovanou (synced_to_sharepoint_at).
+    Pokud Deal ještě nemá SharePoint složku, jen se tiše přeskočí - tenhle
+    "dluh" se dožene později přes sync_pending_attachments_for_deal, jakmile
+    složka vznikne (viz konec create_sharepoint_folder_for_deal).
+    """
     if not deal.sharepoint_drive_id or not deal.sharepoint_subfolder_poptavka_id:
         return
+    filename = attachment.original_filename
     uploaded = sharepoint.upload_file_to_folder(
         deal.sharepoint_drive_id, deal.sharepoint_subfolder_poptavka_id, filename, content_bytes
     )
     if uploaded:
+        attachment.synced_to_sharepoint_at = _dt.datetime.utcnow()
         notification = Notification(
             notification_type="sharepoint_document_synced",
             message=f"Příloha „{filename}“ nahrána na SharePoint - případ „{deal.name}“.",
@@ -167,6 +180,34 @@ def sync_attachment_to_sharepoint(db: Session, deal: Deal, filename: str, conten
         )
         db.add(notification)
         db.commit()
+
+
+def sync_pending_attachments_for_deal(db: Session, deal: Deal) -> None:
+    """
+    Volat hned po vytvoření SharePoint složky (na konci
+    create_sharepoint_folder_for_deal) - dohledá přílohy, které byly
+    nahrané ještě PŘED existencí složky (typicky ve stavu Lead/
+    Kvalifikovaný lead), a nahraje je dodatečně. Bez tohohle by takové
+    přílohy zůstaly na SharePointu navždy chybět, aniž by si toho někdo
+    všiml (upload samotný žádnou chybu nehlásí).
+    """
+    if not deal.sharepoint_drive_id or not deal.sharepoint_subfolder_poptavka_id:
+        return
+    pending = (
+        db.query(DealAttachment)
+        .filter(DealAttachment.deal_id == deal.id, DealAttachment.synced_to_sharepoint_at.is_(None))
+        .all()
+    )
+    for attachment in pending:
+        file_path = ATTACHMENT_STORAGE_DIR / attachment.stored_filename
+        if not file_path.exists():
+            logger.warning(
+                "Priloha %s (Deal %s) nenalezena na disku - preskakuji dodatecny SharePoint sync",
+                attachment.id, deal.id,
+            )
+            continue
+        content = file_path.read_bytes()
+        sync_attachment_to_sharepoint(db, deal, attachment, content)
 
 
 def generate_and_sync_delivery_note(db: Session, deal: Deal, document: Document) -> None:

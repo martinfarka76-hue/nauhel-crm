@@ -20,3 +20,8 @@ class DealAttachment(Base):
     original_filename = Column(String(255), nullable=False)  # název, jak ho nahrál uživatel
     content_type = Column(String(100), nullable=True)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # Kdy se prilohu podarilo nahrat na SharePoint - NULL = jeste nikdy
+    # (typicky proto, ze v dobe nahrani jeste neexistovala SharePoint
+    # slozka Dealu; viz sync_pending_attachments_for_deal, ktera to
+    # dohledava po vytvoreni slozky).
+    synced_to_sharepoint_at = Column(DateTime, nullable=True)
