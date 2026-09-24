@@ -42,6 +42,14 @@ class Document(Base):
     # objednávky - právně relevantní záznam, oddělený od samotného potvrzení
     agreed_to_terms = Column(Boolean, nullable=False, default=False)
 
+    # Dukazni zaznam pro pripad sporu/soudniho reseni - IP adresa v okamziku
+    # potvrzeni, a otisk (SHA-256) + ulozeny soubor presneho zneni VOP, jake
+    # bylo zobrazeno v dobe potvrzeni (odkaz na VOP muze casem ukazovat na
+    # jiny obsah, snapshot dokazuje presne to, co zakaznik tehdy odsouhlasil).
+    confirmation_ip_address = Column(String(45), nullable=True)
+    vop_snapshot_filename = Column(String(255), nullable=True)
+    vop_snapshot_sha256 = Column(String(64), nullable=True)
+
     # Vyčíslená částka - relevantní hlavně pro Zálohová faktura (záloha
     # dle deposit_percent kalkulace) a Finální faktura (zbytek ceny)
     amount = Column(Numeric(12, 2), nullable=True)

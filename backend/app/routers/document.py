@@ -1,5 +1,7 @@
 import uuid
 import os
+import hashlib
+import httpx
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -20,6 +22,7 @@ from app.core.deal_folder import (
     sync_offer_pdf_to_sharepoint,
     sync_invoice_pdf_to_sharepoint,
     create_sharepoint_folder_for_deal,
+    sync_confirmation_to_sharepoint,
     _build_document_filename,
 )
 from app.models.document import Document
@@ -184,6 +187,26 @@ def list_document_views(
 
 # --- Veřejné endpointy (bez přihlášení) - pro frontend-public ---
 
+VOP_SNAPSHOT_DIR = Path("/app/data/vop_snapshots")
+
+
+def _get_client_ip(request: Request) -> str | None:
+    """
+    Zjisti skutecnou IP adresu klienta za reverse proxy (Cloudflare Tunnel).
+    Cloudflare nastavuje CF-Connecting-IP na puvodni IP klienta; bez ni
+    zkousi X-Forwarded-For (prvni hodnota v seznamu); jako posledni
+    moznost primo request.client.host (uvnitr Docker site by to byla IP
+    proxy, ne klienta).
+    """
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip.strip()
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
 @router.get("/public/documents/{access_token}", response_model=DocumentViewCreateResult)
 def view_public_document(access_token: str, request: Request, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.access_token == access_token).first()
@@ -224,7 +247,7 @@ def view_public_document(access_token: str, request: Request, db: Session = Depe
 
     view = DocumentView(
         document_id=document.id,
-        ip_address=request.client.host if request.client else None,
+        ip_address=_get_client_ip(request),
     )
     db.add(view)
 
@@ -338,7 +361,12 @@ def manual_confirm_document(
 
 
 @router.post("/public/documents/{access_token}/confirm", response_model=DocumentConfirmResult)
-def confirm_document(access_token: str, payload: DocumentConfirmRequest, db: Session = Depends(get_db)):
+def confirm_document(
+    access_token: str,
+    payload: DocumentConfirmRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     """
     Elektronické potvrzení objednávky zákazníkem přes veřejný odkaz -
     vlastní "domácí" náhrada e-signature, dokud není vybrán konkrétní
@@ -367,6 +395,26 @@ def confirm_document(access_token: str, payload: DocumentConfirmRequest, db: Ses
         document.confirmed_at = datetime.utcnow()
         document.confirmed_by_name = payload.confirmed_by_name.strip()
         document.agreed_to_terms = True
+        document.confirmation_ip_address = _get_client_ip(request)
+
+        # Snapshot presneho zneni VOP v dobe potvrzeni (dukazni zaznam -
+        # odkaz na VOP muze casem ukazovat na jiny obsah, tohle dokazuje
+        # presne to, co zakaznik tehdy odsouhlasil). Nekriticka operace -
+        # pokud stazeni selze, potvrzeni samotne se tim nezablokuje.
+        if payload.vop_url:
+            try:
+                vop_resp = httpx.get(payload.vop_url, timeout=15.0)
+                vop_resp.raise_for_status()
+                vop_bytes = vop_resp.content
+                vop_hash = hashlib.sha256(vop_bytes).hexdigest()
+                VOP_SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+                vop_filename = f"{document.id}.pdf"
+                (VOP_SNAPSHOT_DIR / vop_filename).write_bytes(vop_bytes)
+                document.vop_snapshot_filename = vop_filename
+                document.vop_snapshot_sha256 = vop_hash
+            except Exception:
+                pass
+
         db.commit()
         db.refresh(document)
 
@@ -404,11 +452,30 @@ def confirm_document(access_token: str, payload: DocumentConfirmRequest, db: Ses
             if deal and deal.status == DealStatus.OBJEDNAVKA:
                 perform_esignature_confirmation(db, deal)
 
+            if deal:
+                sync_confirmation_to_sharepoint(db, deal, document, company)
+
     return DocumentConfirmResult(
         confirmed=True,
         confirmed_at=document.confirmed_at,
         confirmed_by_name=document.confirmed_by_name,
     )
+
+
+@router.get("/documents/{document_id}/vop-snapshot")
+def download_vop_snapshot(
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Stáhne uložený snapshot VOP (přesné znění v době potvrzení) - jen pro přihlášené uživatele CRM."""
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document or not document.vop_snapshot_filename:
+        raise HTTPException(status_code=404, detail="Snapshot VOP nenalezen")
+    file_path = VOP_SNAPSHOT_DIR / document.vop_snapshot_filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Soubor snapshotu VOP nenalezen na disku")
+    return FileResponse(file_path, media_type="application/pdf", filename=f"VOP_{document_id}.pdf")
 
 
 # --- Ruční nahrávání faktur (PDF) - dokud iDoklad integrace není znovu ---

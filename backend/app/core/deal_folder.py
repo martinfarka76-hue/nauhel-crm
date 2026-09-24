@@ -13,6 +13,7 @@ from app.core import sharepoint
 from app.core.folder_sequence import peek_next_folder_number, confirm_folder_number_used
 from app.core.offer_pdf import generate_offer_pdf
 from app.core.delivery_note_pdf import generate_delivery_note_pdf
+from app.core.confirmation_certificate import generate_confirmation_certificate_pdf
 from app.models.deal import Deal
 from app.models.deal_attachment import DealAttachment
 from app.models.document import Document
@@ -86,6 +87,7 @@ def create_sharepoint_folder_for_deal(db: Session, deal: Deal) -> None:
     deal.sharepoint_subfolder_fakturace_id = result.get("fakturace_subfolder_id")
     deal.sharepoint_subfolder_poptavka_id = result.get("poptavka_subfolder_id")
     deal.sharepoint_subfolder_realizace_id = result.get("realizace_subfolder_id")
+    deal.sharepoint_subfolder_smlouvy_id = result.get("smlouvy_subfolder_id")
 
     notification = Notification(
         notification_type="sharepoint_folder_created",
@@ -96,6 +98,27 @@ def create_sharepoint_folder_for_deal(db: Session, deal: Deal) -> None:
     db.commit()
 
     sync_pending_attachments_for_deal(db, deal)
+
+
+def sync_confirmation_to_sharepoint(db: Session, deal: Deal, document: Document, company: Company | None) -> None:
+    """
+    Nahraje certifikat potvrzeni objednavky (obsahujici jmeno, cas, IP
+    adresu a otisk VOP) do podslozky "06_Smlouvy a specifikace" na
+    SharePointu - dukazni zaznam pro pripad sporu/soudniho reseni. Volat
+    hned po uspesnem potvrzeni dokumentu zakaznikem.
+    """
+    if not deal.sharepoint_drive_id or not deal.sharepoint_subfolder_smlouvy_id:
+        return
+    try:
+        pdf_bytes = generate_confirmation_certificate_pdf(document, deal, company)
+    except Exception:
+        logger.exception("Generovani certifikatu potvrzeni selhalo pro Document %s", document.id)
+        return
+
+    filename = f"Potvrzeni_objednavky_{document.id}.pdf"
+    sharepoint.upload_file_to_folder(
+        deal.sharepoint_drive_id, deal.sharepoint_subfolder_smlouvy_id, filename, pdf_bytes
+    )
 
 
 def sync_offer_pdf_to_sharepoint(db: Session, document: Document, deal: Deal) -> None:

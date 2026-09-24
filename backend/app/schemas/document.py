@@ -30,6 +30,9 @@ class DocumentOut(BaseModel):
     confirmed_at: Optional[datetime]
     confirmed_by_name: Optional[str] = None
     agreed_to_terms: bool = False
+    confirmation_ip_address: Optional[str] = None
+    vop_snapshot_filename: Optional[str] = None
+    vop_snapshot_sha256: Optional[str] = None
     amount: Optional[Decimal] = None
     idoklad_invoice_id: Optional[int] = None
     idoklad_invoice_number: Optional[str] = None
@@ -93,6 +96,7 @@ class DocumentPublicOut(BaseModel):
 class DocumentConfirmRequest(BaseModel):
     confirmed_by_name: str
     agreed_to_terms: bool
+    vop_url: Optional[str] = None
 
 
 class DocumentConfirmResult(BaseModel):

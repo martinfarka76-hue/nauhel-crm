@@ -180,6 +180,7 @@ def create_deal_folder(folder_name: str) -> dict | None:
             "nabidka_subfolder_id": subfolder_ids.get("02_Nabídka"),
             "realizace_subfolder_id": subfolder_ids.get("03_Realizace"),
             "fakturace_subfolder_id": subfolder_ids.get("04_Fakturace"),
+            "smlouvy_subfolder_id": subfolder_ids.get("06_Smlouvy a specifikace"),
         }
     except Exception:
         logger.exception("SharePoint: create_deal_folder selhalo pro '%s'", folder_name)

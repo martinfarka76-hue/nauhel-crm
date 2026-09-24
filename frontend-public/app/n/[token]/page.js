@@ -158,7 +158,7 @@ export default function PublicOfferPage() {
       const res = await fetch(`${API_URL}/public/documents/${token}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmed_by_name: confirmName.trim(), agreed_to_terms: true }),
+        body: JSON.stringify({ confirmed_by_name: confirmName.trim(), agreed_to_terms: true, vop_url: VOP_URL }),
       });
       if (!res.ok) throw new Error("Potvrzení se nezdařilo, zkuste to prosím znovu.");
       const data = await res.json();
