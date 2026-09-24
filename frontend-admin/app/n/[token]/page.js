@@ -8,7 +8,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:18080";
 
 function formatMoney(value) {
   if (value === null || value === undefined) return "—";
-  return Number(value).toLocaleString("cs-CZ") + " Kč";
+  return Number(value).toLocaleString("cs-CZ", { maximumFractionDigits: 0 }) + " Kč";
 }
 
 function formatDate(iso) {

@@ -62,7 +62,7 @@ const INVOICE_DATE_LOCKED_STATUS = "Fakturováno";
 
 function money(value) {
   if (value === null || value === undefined) return "—";
-  return Number(value).toLocaleString("cs-CZ") + " Kč";
+  return Number(value).toLocaleString("cs-CZ", { maximumFractionDigits: 0 }) + " Kč";
 }
 
 const emptyItemForm = { category: "Materiál", name: "", unit: "", quantity: "", unit_price: "", item_area_m2: "", wood_species_id: "" };
@@ -2102,7 +2102,7 @@ export default function DealDetailPage() {
                             {partnerPriceItems.map((p) => (
                               <option key={p.id} value={p.id}>
                                 {p.name}
-                                {p.wood_type ? ` - ${p.wood_type}` : ""} {p.dimensions ? `(${p.dimensions})` : ""} – {Number(p.service_price_per_m2).toLocaleString("cs-CZ")} Kč/m²
+                                {p.wood_type ? ` - ${p.wood_type}` : ""} {p.dimensions ? `(${p.dimensions})` : ""} – {Number(p.service_price_per_m2).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} Kč/m²
                               </option>
                             ))}
                           </select>

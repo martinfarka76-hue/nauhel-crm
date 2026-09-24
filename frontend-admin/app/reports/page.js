@@ -17,7 +17,7 @@ const ACTIVE_STATUSES = [
 
 const DEFAULT_ORDER = ["new_deals", "invoice_forecast", "close_forecast", "win_rate", "product_line", "invoiced_history"];
 const ORDER_STORAGE_KEY = "nauhel_reports_order";
-const RANGE_OPTIONS = [3, 6];
+const RANGE_OPTIONS = [3, 6, 12, 24];
 
 // Konzistentní barevný systém - jedna barva (ember) pro objemové/finanční grafy
 // v čase, zelená (--success) pro grafy "úspěch/realizováno", a kategorická
@@ -261,7 +261,7 @@ export default function ReportsPage() {
   const [dragOverId, setDragOverId] = useState(null);
   const [volumeMode, setVolumeMode] = useState("weighted");
   const [ownerFilter, setOwnerFilter] = useState("");
-  const [rangeMonths, setRangeMonths] = useState(6);
+  const [rangeMonths, setRangeMonths] = useState(12);
 
   useEffect(() => {
     Promise.all([api.get("/deals"), api.get("/stage-config"), api.get("/users")])
