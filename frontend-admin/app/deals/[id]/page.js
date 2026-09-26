@@ -575,6 +575,28 @@ export default function DealDetailPage() {
     }
   }
 
+  async function handleActivateCalc(calcId) {
+    if (
+      !window.confirm(
+        "Nastavit tuto kalkulaci jako aktivní? Aktuálně aktivní kalkulace se tím deaktivuje (zůstane dostupná v historii)."
+      )
+    )
+      return;
+    setError("");
+    try {
+      const updatedCalc = await api.post(`/calculations/${calcId}/activate`, {});
+      setCalculations((prev) =>
+        prev.map((c) => {
+          if (c.id === calcId) return updatedCalc;
+          if (c.deal_id === updatedCalc.deal_id && c.is_active) return { ...c, is_active: false };
+          return c;
+        })
+      );
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function getItemForm(calcId) {
     return itemForms[calcId] || emptyItemForm;
   }
@@ -1720,7 +1742,21 @@ export default function DealDetailPage() {
                       </div>
                     </div>
                   </div>
-                  <strong className="mono" style={{ fontSize: 14 }}>{money(c.price_with_vat)}</strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    {!c.is_active && (
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: "3px 8px", fontSize: 11.5 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleActivateCalc(c.id);
+                        }}
+                      >
+                        Nastavit jako aktivní
+                      </button>
+                    )}
+                    <strong className="mono" style={{ fontSize: 14 }}>{money(c.price_with_vat)}</strong>
+                  </div>
                 </div>
 
                 {isExpanded && (
