@@ -1559,6 +1559,9 @@ export default function DealDetailPage() {
             onSubmit={handleCreateCalculation}
             style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--paper-200)" }}
           >
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+              Produkt
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="field">
                 <label>Produktová řada</label>
@@ -1583,7 +1586,7 @@ export default function DealDetailPage() {
                 />
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
               <div className="field">
                 <label>Plocha (m²)</label>
                 <input
@@ -1602,6 +1605,12 @@ export default function DealDetailPage() {
                   onChange={(e) => setCalcForm({ ...calcForm, distance_km: e.target.value })}
                 />
               </div>
+            </div>
+
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+              Obchodní podmínky
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               <div className="field">
                 <label>Sazba DPH</label>
                 <select value={calcForm.vat_rate} onChange={(e) => setCalcForm({ ...calcForm, vat_rate: e.target.value })}>
@@ -1610,8 +1619,6 @@ export default function DealDetailPage() {
                   <option value="0">0 %</option>
                 </select>
               </div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               <div className="field">
                 <label>Sleva na materiál (%)</label>
                 <input
@@ -1630,6 +1637,8 @@ export default function DealDetailPage() {
                   onChange={(e) => setCalcForm({ ...calcForm, discount_installation_percent: e.target.value })}
                 />
               </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="field">
                 <label>Výše zálohy (%)</label>
                 <input
@@ -1639,14 +1648,14 @@ export default function DealDetailPage() {
                   onChange={(e) => setCalcForm({ ...calcForm, deposit_percent: e.target.value })}
                 />
               </div>
-            </div>
-            <div className="field">
-              <label>Platnost nabídky do</label>
-              <input
-                type="date"
-                value={calcForm.valid_until}
-                onChange={(e) => setCalcForm({ ...calcForm, valid_until: e.target.value })}
-              />
+              <div className="field">
+                <label>Platnost nabídky do</label>
+                <input
+                  type="date"
+                  value={calcForm.valid_until}
+                  onChange={(e) => setCalcForm({ ...calcForm, valid_until: e.target.value })}
+                />
+              </div>
             </div>
             <div className="field">
               <label>Termín realizace</label>
@@ -1656,13 +1665,17 @@ export default function DealDetailPage() {
                 placeholder="např. 6-8 týdnů od objednávky"
               />
             </div>
-            <div className="field">
+            <div className="field" style={{ marginBottom: 18 }}>
               <label>Platební podmínky</label>
               <input
                 value={calcForm.payment_terms}
                 onChange={(e) => setCalcForm({ ...calcForm, payment_terms: e.target.value })}
                 placeholder="např. Záloha 50 % při objednávce, doplatek při předání díla"
               />
+            </div>
+
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+              Poznámka pro zákazníka
             </div>
             <div className="field">
               <label>Komentář k nabídce (jen v e-mailu zákazníkovi)</label>
@@ -1782,6 +1795,9 @@ export default function DealDetailPage() {
                           marginBottom: 14,
                         }}
                       >
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+                          Produkt
+                        </div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                           <div className="field">
                             <label>Produktová řada</label>
@@ -1805,7 +1821,7 @@ export default function DealDetailPage() {
                             />
                           </div>
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
                           <div className="field">
                             <label>Plocha (m²)</label>
                             <input
@@ -1824,6 +1840,12 @@ export default function DealDetailPage() {
                               onChange={(e) => setEditCalcForm({ ...editCalcForm, distance_km: e.target.value })}
                             />
                           </div>
+                        </div>
+
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+                          Obchodní podmínky
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                           <div className="field">
                             <label>Sazba DPH</label>
                             <select
@@ -1835,8 +1857,6 @@ export default function DealDetailPage() {
                               <option value="0">0 %</option>
                             </select>
                           </div>
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                           <div className="field">
                             <label>Sleva na materiál (%)</label>
                             <input
@@ -1859,6 +1879,8 @@ export default function DealDetailPage() {
                               }
                             />
                           </div>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                           <div className="field">
                             <label>Výše zálohy (%)</label>
                             <input
@@ -1868,14 +1890,14 @@ export default function DealDetailPage() {
                               onChange={(e) => setEditCalcForm({ ...editCalcForm, deposit_percent: e.target.value })}
                             />
                           </div>
-                        </div>
-                        <div className="field">
-                          <label>Platnost nabídky do</label>
-                          <input
-                            type="date"
-                            value={editCalcForm.valid_until}
-                            onChange={(e) => setEditCalcForm({ ...editCalcForm, valid_until: e.target.value })}
-                          />
+                          <div className="field">
+                            <label>Platnost nabídky do</label>
+                            <input
+                              type="date"
+                              value={editCalcForm.valid_until}
+                              onChange={(e) => setEditCalcForm({ ...editCalcForm, valid_until: e.target.value })}
+                            />
+                          </div>
                         </div>
                         <div className="field">
                           <label>Termín realizace</label>
@@ -1884,12 +1906,16 @@ export default function DealDetailPage() {
                             onChange={(e) => setEditCalcForm({ ...editCalcForm, delivery_terms: e.target.value })}
                           />
                         </div>
-                        <div className="field">
+                        <div className="field" style={{ marginBottom: 18 }}>
                           <label>Platební podmínky</label>
                           <input
                             value={editCalcForm.payment_terms}
                             onChange={(e) => setEditCalcForm({ ...editCalcForm, payment_terms: e.target.value })}
                           />
+                        </div>
+
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+                          Poznámka pro zákazníka
                         </div>
                         <div className="field">
                           <label>Komentář k nabídce (jen v e-mailu zákazníkovi)</label>
